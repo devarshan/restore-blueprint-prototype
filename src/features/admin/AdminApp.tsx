@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import QRCode from 'qrcode';
 import { RestoreLogo } from '../../components/RestoreLogo';
@@ -17,6 +17,7 @@ import {
 import { DEFAULT_CAMPAIGN_SLUG } from '../../infra/campaign';
 import { SITE_ORIGIN } from '../../infra/env';
 import { clearAdminSession } from '../../infra/auth';
+import { AdminOverviewPanel } from './AdminOverview';
 
 type Tab = 'overview' | 'leads' | 'campaigns';
 type WidgetMode = 'inline' | 'popup' | 'slider';
@@ -147,11 +148,6 @@ export function AdminApp() {
     }).then(setQr);
   }, [campaignUrl]);
 
-  const quotaLabel = useMemo(() => {
-    if (!overview) return '';
-    return `${overview.email.quotaUsed} / ${overview.email.quotaCap} emails this month`;
-  }, [overview]);
-
   function logout() {
     clearAdminSession();
     navigate('/admin-login', { replace: true });
@@ -212,10 +208,6 @@ export function AdminApp() {
     window.setTimeout(() => setCopied(''), 1500);
   }
 
-  const totalTypes = overview
-    ? overview.chronotypes.horizon + overview.chronotypes.apex + overview.chronotypes.aurora
-    : 0;
-
   return (
     <div className="admin-shell">
       <header className="admin-top">
@@ -274,69 +266,7 @@ export function AdminApp() {
         ) : null}
 
         {tab === 'overview' && overview ? (
-          <section>
-            <div className="grid gap-10 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] lg:gap-16">
-              <div>
-                <p className="font-sans text-[0.68rem] tracking-[0.2em] text-ink/45 uppercase">Completion rate</p>
-                <p className="mt-2 font-display text-[clamp(3rem,14vw,5rem)] leading-none tracking-tight">
-                  {Math.round(overview.completionRate * 100)}
-                  <span className="text-3xl text-ink/40">%</span>
-                </p>
-                <p className="mt-4 max-w-xs font-sans text-sm font-light leading-6 text-ink/55">
-                  {overview.visitors} visitors · {overview.started} started · {overview.completed} complete
-                </p>
-                <p className="mt-2 font-sans text-sm font-light text-ink/45">{quotaLabel}</p>
-              </div>
-              <div>
-                <p className="font-sans text-[0.68rem] tracking-[0.2em] text-ink/45 uppercase">Chronotypes</p>
-                <div className="mt-4 flex h-2 w-full overflow-hidden bg-ink/10">
-                  <span
-                    className="bg-ink"
-                    style={{ width: totalTypes ? `${(overview.chronotypes.horizon / totalTypes) * 100}%` : '0%' }}
-                  />
-                  <span
-                    className="bg-ink/55"
-                    style={{ width: totalTypes ? `${(overview.chronotypes.apex / totalTypes) * 100}%` : '0%' }}
-                  />
-                  <span
-                    className="bg-brass"
-                    style={{ width: totalTypes ? `${(overview.chronotypes.aurora / totalTypes) * 100}%` : '0%' }}
-                  />
-                </div>
-                <ul className="mt-5 space-y-2 font-sans text-sm">
-                  <li className="flex justify-between">
-                    <span>Horizon</span>
-                    <span className="tabular-nums">{overview.chronotypes.horizon}</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Apex</span>
-                    <span className="tabular-nums">{overview.chronotypes.apex}</span>
-                  </li>
-                  <li className="flex justify-between">
-                    <span>Aurora</span>
-                    <span className="tabular-nums">{overview.chronotypes.aurora}</span>
-                  </li>
-                </ul>
-                <p className="mt-8 font-sans text-[0.68rem] tracking-[0.2em] text-ink/45 uppercase">Email</p>
-                <p className="mt-2 font-sans text-sm font-light text-ink/60">
-                  {overview.email.sent} sent · {overview.email.opened} opened · {overview.email.clicked} clicked
-                </p>
-              </div>
-            </div>
-            {overview.dropOff.length ? (
-              <div className="mt-10 border-t border-ink/10 pt-6 md:mt-14 md:pt-8">
-                <h2 className="font-sans text-[0.68rem] tracking-[0.2em] text-ink/45 uppercase">Drop-off</h2>
-                <ol className="mt-4 columns-1 gap-x-12 sm:columns-2">
-                  {overview.dropOff.map((row) => (
-                    <li key={row.step} className="mb-1 flex justify-between font-sans text-sm">
-                      <span>Step {String(row.step).padStart(2, '0')}</span>
-                      <span className="tabular-nums text-ink/50">{row.count}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            ) : null}
-          </section>
+          <AdminOverviewPanel overview={overview} showCampaigns={!campaignFilter} />
         ) : null}
 
         {tab === 'leads' ? (
@@ -365,7 +295,7 @@ export function AdminApp() {
                   <p className="font-display text-base">{lead.full_name || lead.email}</p>
                   <p className="mt-1 truncate font-sans text-sm text-ink/60">{lead.email}</p>
                   <p className="mt-1 font-sans text-xs capitalize text-ink/45">
-                    {lead.chronotype} · {lead.email_status}
+                    {lead.chronotype} · {lead.email_status} · {new Date(lead.created_at).toLocaleDateString()}
                   </p>
                 </button>
               ))}
@@ -379,7 +309,8 @@ export function AdminApp() {
                     <th className="py-3 pr-4 font-medium">Email</th>
                     <th className="py-3 pr-4 font-medium">Campaign</th>
                     <th className="py-3 pr-4 font-medium">Type</th>
-                    <th className="py-3 font-medium">Email status</th>
+                    <th className="py-3 pr-4 font-medium">Email status</th>
+                    <th className="py-3 font-medium">Date</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -393,7 +324,10 @@ export function AdminApp() {
                       <td className="py-3 pr-4 text-ink/70">{lead.email}</td>
                       <td className="py-3 pr-4">{lead.campaign_name}</td>
                       <td className="py-3 pr-4 capitalize">{lead.chronotype}</td>
-                      <td className="py-3">{lead.email_status}</td>
+                      <td className="py-3 pr-4">{lead.email_status}</td>
+                      <td className="py-3 tabular-nums text-ink/60">
+                        {new Date(lead.created_at).toLocaleDateString()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>

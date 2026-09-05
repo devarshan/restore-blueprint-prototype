@@ -153,7 +153,11 @@ export interface AdminOverview {
     quotaCap: number;
   };
   dropOff: Array<{ step: number; count: number }>;
-  campaigns: CampaignRecord[];
+  daily: Array<{ day: string; started: number; completed: number }>;
+  devices: Array<{ label: string; count: number }>;
+  sources: Array<{ label: string; count: number }>;
+  emailStatus: Array<{ label: string; count: number }>;
+  campaigns: Array<CampaignRecord & { started?: number; completed?: number }>;
 }
 
 export interface AdminLead {

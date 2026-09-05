@@ -300,6 +300,7 @@ Deno.serve(async (req) => {
       const { count } = await client.from("email_events")
         .select("*", { count: "exact", head: true })
         .eq("event_type", "sent")
+        .not("campaign_id", "is", null)
         .gte("timestamp", start.toISOString());
       if ((count || 0) >= cap) {
         await client.from("survey_completions").update({ email_status: "queued" }).eq("id", completionId);
@@ -392,40 +393,44 @@ Deno.serve(async (req) => {
         const campaign = await getCampaign(client, campaignSlug);
         campaignId = campaign?.id ?? -1;
       }
-      const [{ data: stats, error: statsError }, { data: campaigns }, sent, delivered, opened, clicked, bounced, complaints] = await Promise.all([
-        client.rpc("admin_overview_stats", { p_campaign_id: campaignId }),
-        client.from("campaigns").select("*"),
-        countEvents(client, "sent"),
-        countEvents(client, "delivered"),
-        countEvents(client, "opened"),
-        countEvents(client, "clicked"),
-        countEvents(client, "permanent_fail"),
-        countEvents(client, "complaint"),
-      ]);
+      const { data: stats, error: statsError } = await client.rpc("admin_overview_stats", {
+        p_campaign_id: campaignId,
+      });
       if (statsError) return json({ error: statsError.message }, 500);
-      const payload = (typeof stats === "string" ? JSON.parse(stats) : stats || {}) as {
-        visitors?: number;
-        completed?: number;
-        started?: number;
-        chronotypes?: { horizon?: number; apex?: number; aurora?: number };
-        dropOff?: Array<{ step: number; count: number }>;
-      };
+      const payload = (typeof stats === "string" ? JSON.parse(stats) : stats || {}) as Record<string, unknown>;
       const started = Number(payload.started || 0);
       const completed = Number(payload.completed || 0);
       const cap = Number(Deno.env.get("MONTHLY_EMAIL_CAP") || "1000");
+      const chronotypes = (payload.chronotypes || {}) as { horizon?: number; apex?: number; aurora?: number };
+      const email = (payload.email || {}) as Record<string, number>;
+      const sent = Number(email.sent || 0);
+      const quotaUsed = Number(payload.quotaUsed || 0);
       return json({
         visitors: Number(payload.visitors || 0),
         started,
         completed,
         completionRate: started ? completed / started : 0,
         chronotypes: {
-          horizon: Number(payload.chronotypes?.horizon || 0),
-          apex: Number(payload.chronotypes?.apex || 0),
-          aurora: Number(payload.chronotypes?.aurora || 0),
+          horizon: Number(chronotypes.horizon || 0),
+          apex: Number(chronotypes.apex || 0),
+          aurora: Number(chronotypes.aurora || 0),
         },
-        email: { sent, delivered, opened, clicked, bounced, complaints, quotaUsed: sent, quotaCap: cap },
+        email: {
+          sent,
+          delivered: Number(email.delivered || 0),
+          opened: Number(email.opened || 0),
+          clicked: Number(email.clicked || 0),
+          bounced: Number(email.bounced || 0),
+          complaints: Number(email.complaints || 0),
+          quotaUsed,
+          quotaCap: cap,
+        },
         dropOff: payload.dropOff || [],
-        campaigns: campaigns || [],
+        daily: payload.daily || [],
+        devices: payload.devices || [],
+        sources: payload.sources || [],
+        emailStatus: payload.emailStatus || [],
+        campaigns: payload.campaigns || [],
       });
     }
 
@@ -499,11 +504,6 @@ Deno.serve(async (req) => {
     return json({ error: error instanceof Error ? error.message : "Server error" }, 500);
   }
 });
-
-async function countEvents(client: SupabaseClient, type: string): Promise<number> {
-  const { count } = await client.from("email_events").select("*", { count: "exact", head: true }).eq("event_type", type);
-  return count || 0;
-}
 
 function mapLead(row: Record<string, unknown>) {
   const campaign = row.campaigns as { name?: string; slug?: string } | null;
