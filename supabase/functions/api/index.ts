@@ -1,7 +1,7 @@
 import { createClient, type SupabaseClient } from "npm:@supabase/supabase-js@2";
 import { calculateChronotype } from "./chronotype.ts";
-import { buildResultsEmail, scheduleAttachment } from "./emails.ts";
-import { sendEmail } from "./resend.ts";
+import { buildResultsEmail, buildTemplateSend, scheduleAttachment } from "./emails.ts";
+import { isMissingResendTemplate, sendEmail } from "./resend.ts";
 
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -309,24 +309,40 @@ Deno.serve(async (req) => {
 
       const from = Deno.env.get("RESEND_FROM") || "Restore <results@restoreworklife.com>";
       const firstName = storedName.split(" ")[0] || "there";
-      const emailContent = buildResultsEmail({
+      const emailVars = {
         templateKey: campaign.email_template_key,
         campaignName: campaign.name,
         firstName,
         chronotype,
         peakHours,
-      });
-      const sent = await sendEmail({
+      };
+      const tags = [
+        { name: "campaign", value: campaign.slug },
+        { name: "visitor_id", value: String(visitor.id) },
+      ];
+      const templated = buildTemplateSend(emailVars);
+      let sent = await sendEmail({
         from,
         to: email,
-        subject: emailContent.subject,
-        html: emailContent.html,
-        attachments: [await scheduleAttachment(chronotype)],
-        tags: [
-          { name: "campaign", value: campaign.slug },
-          { name: "visitor_id", value: String(visitor.id) },
-        ],
+        subject: templated.subject,
+        template: {
+          id: templated.templateId,
+          variables: templated.variables,
+        },
+        tags,
       });
+      if (sent.error && isMissingResendTemplate(sent.error)) {
+        console.error("resend template send failed, using inline html", templated.templateId, sent.error);
+        const emailContent = buildResultsEmail(emailVars);
+        sent = await sendEmail({
+          from,
+          to: email,
+          subject: emailContent.subject,
+          html: emailContent.html,
+          attachments: [await scheduleAttachment(chronotype)],
+          tags,
+        });
+      }
       if (sent.error) {
         console.error("resend send failed", sent.error);
         const status = sent.error.includes("RESEND_API_KEY missing") ? "queued" : "failed";

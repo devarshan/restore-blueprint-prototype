@@ -38,8 +38,17 @@ Configure these on Supabase project `zpsizielqjyalntojrbk`. Do not put them in t
 - `RESEND_API_KEY`
 - `RESEND_WEBHOOK_SECRET`
 - `RESEND_FROM`
+- `RESEND_TEMPLATE_APEX` (optional; defaults to alias `restore-apex-schedule`)
+- `RESEND_TEMPLATE_AURORA` (optional; defaults to alias `restore-aurora-schedule`)
+- `RESEND_TEMPLATE_HORIZON` (optional; defaults to alias `restore-horizon-schedule`)
 - `IP_HASH_SALT`
 - `MONTHLY_EMAIL_CAP`
+
+Result emails are sent with Resend Templates (one published template per chronotype). To edit copy, open [Resend Templates](https://resend.com/templates), click **Restore Apex schedule**, **Restore Aurora schedule**, or **Restore Horizon schedule**, change the content, then **Publish**. Unpublished drafts do not affect live sends.
+
+Creating or listing templates via the API needs a Resend Full access key. The production `RESEND_API_KEY` can stay sending-access. After a dashboard edit, click **Publish**. Until then, live sends use the last published version.
+
+Bootstrap (Full access key only): `RESEND_API_KEY=... node scripts/create-resend-templates.mjs`
 
 The `resend-webhook` function has JWT verification off so Resend/Svix HMAC can authenticate. Point the Resend webhook at:
 

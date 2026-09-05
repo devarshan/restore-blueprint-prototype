@@ -62,16 +62,95 @@ export function escapeHtml(value: string): string {
     .replaceAll("'", "&#39;");
 }
 
-function namedEvent(campaignName: string): string | null {
+export function namedEvent(campaignName: string): string | null {
   const name = campaignName.trim();
   if (!name) return null;
   if (/^(restore|conference|default)$/i.test(name)) return null;
   return name;
 }
 
-function resolveChronotype(value: string): ChronotypeName {
+export function resolveChronotype(value: string): ChronotypeName {
   const key = value.trim().toLowerCase();
   return isChronotype(key) ? key : "apex";
+}
+
+export const DEFAULT_INTRO =
+  "Thank you for taking the Restore chronotype survey. We hope your results sparked some insights into how <strong>you</strong> naturally work best.";
+
+export const RESEND_TEMPLATE_ALIASES: Record<ChronotypeName, string> = {
+  apex: "restore-apex-schedule",
+  aurora: "restore-aurora-schedule",
+  horizon: "restore-horizon-schedule",
+};
+
+export function scheduleImageUrl(chronotype: string): string {
+  const type = resolveChronotype(chronotype);
+  return `${SITE}/static/images/email/${type}-schedule.jpg`;
+}
+
+export function eventIntro(event: string): string {
+  return `Thank you for demoing Restore at ${escapeHtml(event)}. We loved meeting you and hope your cognitive chronotype results sparked some insights into how <strong>you</strong> naturally work best.`;
+}
+
+export function resendTemplateId(chronotype: string): string {
+  const type = resolveChronotype(chronotype);
+  let envName: string;
+  switch (type) {
+    case "apex":
+      envName = "RESEND_TEMPLATE_APEX";
+      break;
+    case "aurora":
+      envName = "RESEND_TEMPLATE_AURORA";
+      break;
+    case "horizon":
+      envName = "RESEND_TEMPLATE_HORIZON";
+      break;
+    default: {
+      const _never: never = type;
+      return _never;
+    }
+  }
+  const fromEnv = (Deno.env.get(envName) || "").trim();
+  return fromEnv || RESEND_TEMPLATE_ALIASES[type];
+}
+
+export function greetingHtml(firstName: string): string {
+  const name = firstName.trim();
+  const showName = name.length > 0 && name.toLowerCase() !== "there";
+  if (!showName) return "";
+  return `<p style="margin:0 0 12px;">Hi ${escapeHtml(name)},</p>`;
+}
+
+export function resultsEmailSubject(campaignName: string, templateKey: string): { subject: string; event: string | null; override: boolean } {
+  const event = namedEvent(campaignName) ||
+    (templateKey === "future-of-work" ? "Future of Work" : null);
+  if (event) {
+    return { subject: `You Found Us at ${event}, Now Restore Your Workday`, event, override: true };
+  }
+  return { subject: "You Found Us, Now Restore Your Workday", event: null, override: false };
+}
+
+export function buildTemplateSend(vars: EmailVars): {
+  templateId: string;
+  variables: Record<string, string>;
+  subject?: string;
+} {
+  const type = resolveChronotype(vars.chronotype);
+  const { subject, event, override } = resultsEmailSubject(vars.campaignName, vars.templateKey);
+  const variables: Record<string, string> = {
+    RECIPIENT_NAME: vars.firstName.trim(),
+    GREETING: greetingHtml(vars.firstName),
+    SCHEDULE_IMAGE_URL: scheduleImageUrl(type),
+  };
+  if (event) {
+    variables.EVENT_NAME = event;
+    variables.INTRO = eventIntro(event);
+  }
+  return {
+    templateId: resendTemplateId(type),
+    variables,
+    subject: override ? subject : undefined,
+  };
 }
 
 function range(start: string, end: string): string {
@@ -102,36 +181,52 @@ export async function scheduleAttachment(chronotype: string): Promise<EmailAttac
   };
 }
 
-export function buildResultsEmail(vars: EmailVars): { subject: string; html: string } {
-  const type = resolveChronotype(vars.chronotype);
+function chronotypeLayout(type: ChronotypeName): {
+  name: string;
+  copy: ChronotypeCopy;
+  firstRange: string;
+  secondRange: string;
+  peakLine: string;
+  preheader: string;
+  scheduleAlt: string;
+} {
   const copy = COPY[type];
   const windows = CHRONOTYPE_WINDOWS[type];
   const name = type.charAt(0).toUpperCase() + type.slice(1);
-  const event = namedEvent(vars.campaignName) ||
-    (vars.templateKey === "future-of-work" ? "Future of Work" : null);
-  const firstName = vars.firstName.trim();
-  const showName = firstName.length > 0 && firstName.toLowerCase() !== "there";
   const firstRange = range(windows.firstPeakStart, windows.firstPeakEnd);
   const secondRange = range(windows.secondPeakStart, windows.secondPeakEnd);
   const peakLine = `${name}: ${firstRange} (${copy.firstLabel}) and ${secondRange} (${copy.secondLabel})`;
+  return {
+    name,
+    copy,
+    firstRange,
+    secondRange,
+    peakLine,
+    preheader: `You are ${copy.article} ${name}. Peak windows: ${firstRange} and ${secondRange}.`,
+    scheduleAlt: `${name} Schedule: ${firstRange} and ${secondRange}`,
+  };
+}
 
-  const intro = event
-    ? `Thank you for demoing Restore at ${escapeHtml(event)}. We loved meeting you and hope your cognitive chronotype results sparked some insights into how <strong>you</strong> naturally work best.`
-    : "Thank you for taking the Restore chronotype survey. We hope your results sparked some insights into how <strong>you</strong> naturally work best.";
-
-  const preheader = `You are ${copy.article} ${name}. Peak windows: ${firstRange} and ${secondRange}.`;
-  const subject = event
-    ? `You Found Us at ${event}, Now Restore Your Workday`
-    : "You Found Us, Now Restore Your Workday";
-
-  const html = `<!DOCTYPE html>
+function renderEmailHtml(opts: {
+  subject: string;
+  preheader: string;
+  greeting: string;
+  intro: string;
+  article: string;
+  name: string;
+  pattern: string;
+  peakLine: string;
+  scheduleSrc: string;
+  scheduleAlt: string;
+}): string {
+  return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="x-apple-disable-message-reformatting">
 <meta name="format-detection" content="telephone=no, date=no, address=no, email=no">
-<title>${escapeHtml(subject)}</title>
+<title>${escapeHtml(opts.subject)}</title>
 <!--[if gte mso 9]>
 <xml>
 <o:OfficeDocumentSettings>
@@ -157,7 +252,7 @@ export function buildResultsEmail(vars: EmailVars): { subject: string; html: str
 </style>
 </head>
 <body style="margin:0;padding:0;background:#ffffff;width:100%;">
-<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#ffffff;opacity:0;">${escapeHtml(preheader)}</div>
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;font-size:1px;line-height:1px;color:#ffffff;opacity:0;">${escapeHtml(opts.preheader)}</div>
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;background:#ffffff;">
   <tr>
     <td align="center" valign="top" style="margin:0;padding:0;">
@@ -175,11 +270,11 @@ export function buildResultsEmail(vars: EmailVars): { subject: string; html: str
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
               <tr>
                 <td class="email-pad" valign="top" style="padding:8px 16px 16px 24px;font-family:Arial,Helvetica,sans-serif;color:${TEXT};font-size:15px;line-height:1.45;text-align:left;">
-                  ${showName ? `<p style="margin:0 0 12px;">Hi ${escapeHtml(firstName)},</p>` : ""}
-                  <p style="margin:0 0 12px;">${intro}</p>
+                  ${opts.greeting}
+                  <p style="margin:0 0 12px;">${opts.intro}</p>
                   <p style="margin:0 0 12px;">Here is more information about when your brain is at its most productive:</p>
-                  <p style="margin:0 0 12px;">You are ${copy.article} <strong>${name}</strong>, ${copy.pattern}.</p>
-                  <p style="margin:0 0 12px;"><strong>${escapeHtml(peakLine)}</strong></p>
+                  <p style="margin:0 0 12px;">You are ${opts.article} <strong>${opts.name}</strong>, ${opts.pattern}.</p>
+                  <p style="margin:0 0 12px;"><strong>${escapeHtml(opts.peakLine)}</strong></p>
                   <p style="margin:0;">These peaks are your windows for deep work, creative flow, and problem-solving. In the surrounding hours, prioritize administrative work, check-in meetings, and 10-minute breaks to reset your cognitive performance.</p>
                 </td>
               </tr>
@@ -190,7 +285,7 @@ export function buildResultsEmail(vars: EmailVars): { subject: string; html: str
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;">
               <tr>
                 <td class="email-pad" valign="top" style="padding:8px 20px 16px 10px;">
-                  <img class="email-schedule" src="cid:${SCHEDULE_CID}" width="300" alt="${name} Schedule: ${firstRange} and ${secondRange}" style="display:block;width:100%;max-width:300px;height:auto;border:0;">
+                  <img class="email-schedule" src="${opts.scheduleSrc}" width="300" alt="${escapeHtml(opts.scheduleAlt)}" style="display:block;width:100%;max-width:300px;height:auto;border:0;">
                 </td>
               </tr>
             </table>
@@ -225,10 +320,57 @@ export function buildResultsEmail(vars: EmailVars): { subject: string; html: str
 </table>
 </body>
 </html>`;
+}
 
+export function buildResultsEmail(vars: EmailVars): { subject: string; html: string } {
+  const type = resolveChronotype(vars.chronotype);
+  const layout = chronotypeLayout(type);
+  const { subject, event } = resultsEmailSubject(vars.campaignName, vars.templateKey);
+  const html = renderEmailHtml({
+    subject,
+    preheader: layout.preheader,
+    greeting: greetingHtml(vars.firstName),
+    intro: event ? eventIntro(event) : DEFAULT_INTRO,
+    article: layout.copy.article,
+    name: layout.name,
+    pattern: layout.copy.pattern,
+    peakLine: layout.peakLine,
+    scheduleSrc: `cid:${SCHEDULE_CID}`,
+    scheduleAlt: layout.scheduleAlt,
+  });
   return { subject, html };
+}
+
+export function buildResendTemplateHtml(type: ChronotypeName): string {
+  const layout = chronotypeLayout(type);
+  return renderEmailHtml({
+    subject: "You Found Us, Now Restore Your Workday",
+    preheader: layout.preheader,
+    greeting: "{{{GREETING}}}",
+    intro: "{{{INTRO}}}",
+    article: layout.copy.article,
+    name: layout.name,
+    pattern: layout.copy.pattern,
+    peakLine: layout.peakLine,
+    scheduleSrc: "{{{SCHEDULE_IMAGE_URL}}}",
+    scheduleAlt: layout.scheduleAlt,
+  });
 }
 
 export function renderResultsEmail(vars: EmailVars): string {
   return buildResultsEmail(vars).html;
+}
+
+export function resendTemplateVariableDefs(type: ChronotypeName): Array<{
+  key: string;
+  type: "string";
+  fallback_value: string;
+}> {
+  return [
+    { key: "GREETING", type: "string", fallback_value: "" },
+    { key: "INTRO", type: "string", fallback_value: DEFAULT_INTRO },
+    { key: "RECIPIENT_NAME", type: "string", fallback_value: "" },
+    { key: "EVENT_NAME", type: "string", fallback_value: "" },
+    { key: "SCHEDULE_IMAGE_URL", type: "string", fallback_value: scheduleImageUrl(type) },
+  ];
 }
