@@ -224,17 +224,42 @@ const TEMPLATES = [
   { type: "horizon", name: "Restore Horizon schedule", alias: "restore-horizon-schedule" },
 ];
 
-const fileEnv = { ...loadEnvFile(join(root, ".env.supabase.local")), ...loadEnvFile(join(root, ".env.company.secrets")) };
-const apiKey = process.env.RESEND_API_KEY || fileEnv.RESEND_API_KEY;
+const fileEnv = {
+  ...loadEnvFile(join(root, ".env.supabase.local")),
+  ...loadEnvFile(join(root, ".env.company.secrets")),
+  ...loadEnvFile(join(root, ".env.resend.setup")),
+};
 const from = process.env.RESEND_FROM || fileEnv.RESEND_FROM || "Restore <results@restoreworklife.com>";
-if (!apiKey) {
+const keyCandidates = [
+  process.env.RESEND_API_KEY_FULL,
+  fileEnv.RESEND_API_KEY_FULL,
+  fileEnv.RESEND_API_KEY_FULL_ALT,
+  process.env.RESEND_API_KEY,
+  fileEnv.RESEND_API_KEY,
+].filter((value, index, all) => value && all.indexOf(value) === index);
+
+if (!keyCandidates.length) {
   console.error("RESEND_API_KEY missing");
   process.exit(1);
 }
-console.log(`key_prefix=${apiKey.slice(0, 6)} len=${apiKey.length}`);
 
-const listed = await resend(apiKey, "GET", "/templates?limit=50");
-console.log(`list_templates status=${listed.status} name=${listed.json?.name || ""} message=${listed.json?.message || ""}`);
+let apiKey = "";
+let listed = { status: 0, json: {} };
+for (const candidate of keyCandidates) {
+  const probe = await resend(candidate, "GET", "/templates?limit=50");
+  console.log(`list_templates prefix=${candidate.slice(0, 6)} len=${candidate.length} status=${probe.status} name=${probe.json?.name || ""} message=${probe.json?.message || ""}`);
+  listed = probe;
+  apiKey = candidate;
+  if (probe.status < 400) break;
+  if (probe.status === 401 && /restricted/i.test(probe.json?.message || probe.json?.name || "")) {
+    continue;
+  }
+  if (probe.status === 401) continue;
+}
+if (!apiKey || listed.status >= 400) {
+  console.error("no usable full-access Resend key");
+  process.exit(1);
+}
 const existing = new Map();
 for (const row of listed.json?.data || []) {
   existing.set(row.alias, row);
@@ -261,10 +286,10 @@ for (const spec of TEMPLATES) {
     subject: "You Found Us, Now Restore Your Workday",
     html: templateHtml(spec.type),
     variables: [
-      { key: "GREETING", type: "string", fallback_value: "" },
+      { key: "GREETING", type: "string", fallback_value: " " },
       { key: "INTRO", type: "string", fallback_value: DEFAULT_INTRO },
-      { key: "RECIPIENT_NAME", type: "string", fallback_value: "" },
-      { key: "EVENT_NAME", type: "string", fallback_value: "" },
+      { key: "RECIPIENT_NAME", type: "string", fallback_value: "there" },
+      { key: "EVENT_NAME", type: "string", fallback_value: " " },
       { key: "SCHEDULE_IMAGE_URL", type: "string", fallback_value: `${SITE}/static/images/email/${spec.type}-schedule.jpg` },
     ],
   };

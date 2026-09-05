@@ -83,16 +83,73 @@ export const RESEND_TEMPLATE_ALIASES: Record<ChronotypeName, string> = {
   horizon: "restore-horizon-schedule",
 };
 
-export function scheduleImageUrl(chronotype: string): string {
+export type EmailDesignKey = "default" | "dossier" | "atelier" | "midnight" | "plate" | "folio";
+
+export const CONCEPT_TEMPLATE_ALIASES: Record<Exclude<EmailDesignKey, "default">, string> = {
+  dossier: "restore-concept-dossier",
+  atelier: "restore-concept-atelier",
+  midnight: "restore-concept-midnight",
+  plate: "restore-concept-plate",
+  folio: "restore-concept-folio",
+};
+
+export function parseEmailDesign(value: string): EmailDesignKey {
+  const key = value.trim().toLowerCase();
+  switch (key) {
+    case "dossier":
+    case "atelier":
+    case "midnight":
+    case "plate":
+    case "folio":
+      return key;
+    case "default":
+    case "chronotype":
+    case "future-of-work":
+    case "":
+      return "default";
+    default:
+      return "default";
+  }
+}
+
+export function scheduleImageUrl(chronotype: string, tone: "dark" | "light" = "dark"): string {
   const type = resolveChronotype(chronotype);
-  return `${SITE}/static/images/email/${type}-schedule.jpg`;
+  const suffix = tone === "light" ? "-light" : "";
+  return `${SITE}/static/images/email/${type}-schedule${suffix}.jpg`;
 }
 
 export function eventIntro(event: string): string {
   return `Thank you for demoing Restore at ${escapeHtml(event)}. We loved meeting you and hope your cognitive chronotype results sparked some insights into how <strong>you</strong> naturally work best.`;
 }
 
-export function resendTemplateId(chronotype: string): string {
+export function resendTemplateId(chronotype: string, templateKey = "default"): string {
+  const design = parseEmailDesign(templateKey);
+  if (design !== "default") {
+    let envName: string;
+    switch (design) {
+      case "dossier":
+        envName = "RESEND_TEMPLATE_DOSSIER";
+        break;
+      case "atelier":
+        envName = "RESEND_TEMPLATE_ATELIER";
+        break;
+      case "midnight":
+        envName = "RESEND_TEMPLATE_MIDNIGHT";
+        break;
+      case "plate":
+        envName = "RESEND_TEMPLATE_PLATE";
+        break;
+      case "folio":
+        envName = "RESEND_TEMPLATE_FOLIO";
+        break;
+      default: {
+        const _never: never = design;
+        return _never;
+      }
+    }
+    const fromEnv = (Deno.env.get(envName) || "").trim();
+    return fromEnv || CONCEPT_TEMPLATE_ALIASES[design];
+  }
   const type = resolveChronotype(chronotype);
   let envName: string;
   switch (type) {
@@ -136,16 +193,32 @@ export function buildTemplateSend(vars: EmailVars): {
   subject?: string;
 } {
   const type = resolveChronotype(vars.chronotype);
+  const design = parseEmailDesign(vars.templateKey);
+  const tone = design === "midnight" || design === "default" ? "dark" : "light";
   const { subject, event, override } = resultsEmailSubject(vars.campaignName, vars.templateKey);
+  const layout = chronotypeLayout(type);
   const variables: Record<string, string> = {
     RECIPIENT_NAME: vars.firstName.trim(),
     GREETING: greetingHtml(vars.firstName),
-    SCHEDULE_IMAGE_URL: scheduleImageUrl(type),
+    SCHEDULE_IMAGE_URL: scheduleImageUrl(type, tone),
     INTRO: event ? eventIntro(event) : DEFAULT_INTRO,
-    EVENT_NAME: event || "",
+    EVENT_NAME: event || " ",
   };
+  if (design !== "default") {
+    variables.CHRONOTYPE_NAME = layout.name;
+    variables.CHRONOTYPE_ARTICLE = layout.copy.article;
+    variables.CHRONOTYPE_KICKER = layout.copy.kicker;
+    variables.CHRONOTYPE_PATTERN = layout.copy.pattern;
+    variables.PEAK_LINE = layout.peakLine;
+    variables.FIRST_WINDOW = layout.firstRange;
+    variables.SECOND_WINDOW = layout.secondRange;
+    variables.FIRST_LABEL = layout.copy.firstLabel;
+    variables.SECOND_LABEL = layout.copy.secondLabel;
+    variables.SCHEDULE_ALT = layout.scheduleAlt;
+    variables.PREHEADER = layout.preheader;
+  }
   return {
-    templateId: resendTemplateId(type),
+    templateId: resendTemplateId(type, vars.templateKey),
     variables,
     subject: override ? subject : undefined,
   };

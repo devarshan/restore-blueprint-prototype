@@ -15,6 +15,7 @@ import {
   type CampaignRecord,
 } from '../../infra/api';
 import { DEFAULT_CAMPAIGN_SLUG } from '../../infra/campaign';
+import { EMAIL_DESIGN_OPTIONS, emailDesignLabel, parseEmailDesign, type EmailDesignKey } from '../../infra/emailDesigns';
 import { SITE_ORIGIN } from '../../infra/env';
 import { clearAdminSession } from '../../infra/auth';
 import { AdminOverviewPanel } from './AdminOverview';
@@ -81,6 +82,7 @@ export function AdminApp() {
   const [qr, setQr] = useState('');
   const [copied, setCopied] = useState('');
   const [selectedSlug, setSelectedSlug] = useState(DEFAULT_CAMPAIGN_SLUG);
+  const [emailDesign, setEmailDesign] = useState<EmailDesignKey>('default');
 
   const campaignSlug = selectedSlug;
   const campaignUrl = `${SITE_ORIGIN}/?campaign=${campaignSlug}`;
@@ -177,7 +179,7 @@ export function AdminApp() {
     setError('');
     setNotice('');
     try {
-      const created = await adminCreateCampaign({ name: name.trim(), slug });
+      const created = await adminCreateCampaign({ name: name.trim(), slug, emailTemplateKey: emailDesign });
       setCampaigns((current) => [created.campaign, ...current.filter((item) => item.slug !== slug)]);
       setCampaignFilter(slug);
       setSelectedSlug(slug);
@@ -406,6 +408,25 @@ export function AdminApp() {
                 className="admin-field"
               />
               <p className="mt-2 break-all font-sans text-sm text-ink/40">URL: /?campaign={pendingSlug}</p>
+              <label htmlFor="emailDesign" className="mt-4 block font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">
+                Result email
+              </label>
+              <select
+                id="emailDesign"
+                value={emailDesign}
+                onChange={(event) => setEmailDesign(parseEmailDesign(event.target.value))}
+                className="admin-field"
+              >
+                {EMAIL_DESIGN_OPTIONS.map((item) => (
+                  <option key={item.key} value={item.key}>
+                    {item.label}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-2 font-sans text-sm text-ink/50">
+                Completions on this campaign send this design. Edit copy in Resend, then Publish. This does not change the
+                survey.
+              </p>
               <p className="mt-4 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Widget mode</p>
               <div className="admin-mode" role="group" aria-label="Widget mode">
                 {WIDGET_MODES.map((item) => (
@@ -440,6 +461,7 @@ export function AdminApp() {
                         setCampaignFilter(item.slug);
                         setName(item.name);
                         setSlugInput(item.slug);
+                        setEmailDesign(parseEmailDesign(item.email_template_key));
                         setNotice('');
                       }}
                       className={`flex min-h-12 w-full items-center justify-between gap-3 px-1 text-left font-sans text-sm ${
@@ -447,7 +469,7 @@ export function AdminApp() {
                       }`}
                     >
                       <span className="min-w-0 truncate font-semibold">{item.name}</span>
-                      <span className="shrink-0 text-ink/40">{item.slug}</span>
+                      <span className="shrink-0 text-ink/40">{emailDesignLabel(item.email_template_key)}</span>
                     </button>
                   </li>
                 ))}

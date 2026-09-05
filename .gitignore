@@ -43,6 +43,9 @@ AGENTS.md
 .DS_Store
 Thumbs.db
 
+# Generated email previews
+scripts/email-concepts/previews
+
 # Supabase local
 supabase/.temp
 .supabase

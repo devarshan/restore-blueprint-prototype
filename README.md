@@ -44,7 +44,12 @@ Configure these on Supabase project `zpsizielqjyalntojrbk`. Do not put them in t
 - `IP_HASH_SALT`
 - `MONTHLY_EMAIL_CAP`
 
-Result emails are sent with Resend Templates (one published template per chronotype). To edit copy, open [Resend Templates](https://resend.com/templates), click **Restore Apex schedule**, **Restore Aurora schedule**, or **Restore Horizon schedule**, change the content, then **Publish**. Unpublished drafts do not affect live sends.
+Result emails are sent with Resend Templates. Marketing picks the design per campaign in Admin → Campaigns → Result email, then Save campaign. Next completions on that campaign use that design.
+
+- Current: **Restore Apex schedule**, **Restore Aurora schedule**, **Restore Horizon schedule** (dark clock).
+- Concepts: **The Dossier**, **The Atelier**, **The Plate**, **The Folio** (paper, light plates) and **Midnight Brief** (dark).
+
+To edit copy, open [Resend Templates](https://resend.com/templates), change the template, then **Publish**. Unpublished drafts do not affect live sends.
 
 Creating or listing templates via the API needs a Resend Full access key. The production `RESEND_API_KEY` can stay sending-access. After a dashboard edit, click **Publish**. Until then, live sends use the last published version.
 
