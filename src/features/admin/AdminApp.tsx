@@ -412,6 +412,16 @@ export function AdminApp() {
                 <p className="mt-1 font-sans text-sm capitalize text-ink/60">
                   {detail.lead.chronotype} · {detail.lead.email_status}
                 </p>
+                {detail.lead.score_factors?.length ? (
+                  <>
+                    <h3 className="mt-6 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Score factors</h3>
+                    <ul className="mt-3 space-y-2 font-sans text-sm">
+                      {detail.lead.score_factors.map((factor) => (
+                        <li key={factor}>{factor}</li>
+                      ))}
+                    </ul>
+                  </>
+                ) : null}
                 <h3 className="mt-6 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Answers</h3>
                 <ul className="mt-3 space-y-2 font-sans text-sm">
                   {detail.answers.map((answer) => (

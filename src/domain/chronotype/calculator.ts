@@ -36,6 +36,10 @@ function calculateSleepMidpoint(bedtimeHour: string, bedtimeMin: string, waketim
   return midpoint % (24 * 60);
 }
 
+function signed(delta: number): string {
+  return delta > 0 ? `+${delta}` : String(delta);
+}
+
 export function calculateChronotype(data: SurveyData): ChronotypeResult {
   let score = 50;
   const scoreFactors: string[] = [];
@@ -61,7 +65,7 @@ export function calculateChronotype(data: SurveyData): ChronotypeResult {
     else midpointAdjustment = -20;
 
     score += midpointAdjustment;
-    scoreFactors.push(`Sleep midpoint: ${midpointHour.toFixed(1)}h → ${midpointAdjustment > 0 ? '+' : ''}${midpointAdjustment}`);
+    scoreFactors.push(`Sleep midpoint: ${midpointHour.toFixed(1)}h → ${signed(midpointAdjustment)}`);
   }
 
   const useAlarmFreeDay = useFreeDay ? data.nonWorkdayUseAlarm : data.workdayUseAlarm;
@@ -79,7 +83,7 @@ export function calculateChronotype(data: SurveyData): ChronotypeResult {
       else wakeAdjustment = -15;
 
       score += wakeAdjustment;
-      scoreFactors.push(`Natural wake: ${wakeHour.toFixed(1)}h (no alarm) → ${wakeAdjustment > 0 ? '+' : ''}${wakeAdjustment}`);
+      scoreFactors.push(`Natural wake: ${wakeHour.toFixed(1)}h (no alarm) → ${signed(wakeAdjustment)}`);
     } else {
       scoreFactors.push(`Wake: ${wakeHour.toFixed(1)}h (with alarm - not scored)`);
     }
@@ -88,38 +92,50 @@ export function calculateChronotype(data: SurveyData): ChronotypeResult {
   if (data.differentSleepPattern === 'yes') {
     if (data.sleepLongerNonWorkday === 'yes') {
       score -= 15;
+      scoreFactors.push(`Longer sleep on days off → -15`);
     } else if (data.sleepLongerNonWorkday === 'no') {
       score += 10;
+      scoreFactors.push(`Same sleep length on days off → +10`);
     }
   } else {
     score += 15;
+    scoreFactors.push(`Same sleep pattern both day types → +15`);
   }
 
   if (data.workdayFallAsleepDuration === '<5' || data.workdayFallAsleepDuration === '5-15') {
     score += 10;
+    scoreFactors.push(`Falls asleep in under 15 min → +10`);
   } else if (data.workdayFallAsleepDuration === '30-60' || data.workdayFallAsleepDuration === '60+') {
     score -= 10;
+    scoreFactors.push(`Takes over 30 min to fall asleep → -10`);
   }
 
   if (data.workdayUseAlarm === 'yes') {
     score -= 5;
+    scoreFactors.push(`Workday alarm → -5`);
   } else {
     score += 10;
+    scoreFactors.push(`No workday alarm → +10`);
   }
 
   if (data.breakfastHour) {
     const breakfastMinutes = timeToMinutes(data.breakfastHour, data.breakfastMinute);
     const breakfastHour = breakfastMinutes / 60;
-
-    if (breakfastHour < 7) score += 10;
-    else if (breakfastHour < 8) score += 5;
-    else if (breakfastHour < 9) score += 0;
-    else if (breakfastHour < 10) score -= 5;
-    else score -= 10;
+    let breakfastAdjustment = 0;
+    if (breakfastHour < 7) breakfastAdjustment = 10;
+    else if (breakfastHour < 8) breakfastAdjustment = 5;
+    else if (breakfastHour < 9) breakfastAdjustment = 0;
+    else if (breakfastHour < 10) breakfastAdjustment = -5;
+    else breakfastAdjustment = -10;
+    score += breakfastAdjustment;
+    if (breakfastAdjustment !== 0) {
+      scoreFactors.push(`Breakfast: ${breakfastHour.toFixed(1)}h → ${signed(breakfastAdjustment)}`);
+    }
   }
 
   if (data.stressLevel > 70 && data.workLifeBalance < 30) {
     score -= 5;
+    scoreFactors.push(`High stress and low work-life balance → -5`);
   }
 
   let ageAdjustment = 0;
@@ -136,19 +152,23 @@ export function calculateChronotype(data: SurveyData): ChronotypeResult {
   }
   score += ageAdjustment;
   if (ageAdjustment !== 0) {
-    scoreFactors.push(`Age: ${age}y → ${ageAdjustment > 0 ? '+' : ''}${ageAdjustment}`);
+    scoreFactors.push(`Age: ${age}y → ${signed(ageAdjustment)}`);
   }
 
   if (data.gender === 'Female') {
     score += 3;
+    scoreFactors.push('Gender: Female → +3');
   } else if (data.gender === 'Male') {
     score -= 2;
+    scoreFactors.push('Gender: Male → -2');
   }
 
   if (data.exerciseDaysPerWeek >= 5) {
     score += 5;
+    scoreFactors.push(`Exercise ${data.exerciseDaysPerWeek} days/week → +5`);
   } else if (data.exerciseDaysPerWeek >= 3) {
     score += 2;
+    scoreFactors.push(`Exercise ${data.exerciseDaysPerWeek} days/week → +2`);
   }
 
   score = Math.max(0, Math.min(100, score));
@@ -178,6 +198,7 @@ export function calculateChronotype(data: SurveyData): ChronotypeResult {
   return {
     chronotype,
     score: Math.round(score),
+    scoreFactors,
     description: getChronotypeDescription(chronotype),
     characteristics: getChronotypeCharacteristics(chronotype),
     firstPeakStart,

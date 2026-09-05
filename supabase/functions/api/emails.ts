@@ -84,9 +84,17 @@ function link(href: string, label: string): string {
 
 export async function scheduleAttachment(chronotype: string): Promise<EmailAttachment> {
   const type = resolveChronotype(chronotype);
-  const bytes = await Deno.readFile(new URL(`./assets/${type}-schedule.jpg`, import.meta.url));
+  const filename = `${type}-schedule.jpg`;
+  let bytes: Uint8Array;
+  try {
+    bytes = await Deno.readFile(new URL(`./assets/${filename}`, import.meta.url));
+  } catch {
+    const response = await fetch(`${SITE}/static/images/email/${filename}`);
+    if (!response.ok) throw new Error("schedule image missing");
+    bytes = new Uint8Array(await response.arrayBuffer());
+  }
   return {
-    filename: `${type}-schedule.jpg`,
+    filename,
     content: bytesToBase64(bytes),
     content_id: SCHEDULE_CID,
     content_type: "image/jpeg",

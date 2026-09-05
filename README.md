@@ -5,9 +5,11 @@ Chronotype survey for conference campaigns. Completions save to Supabase. Result
 ## Stack
 
 - Vite + React
-- Supabase (Postgres + Edge Functions)
+- Supabase project `zpsizielqjyalntojrbk` (Postgres + Edge Functions)
 - Resend
-- Vercel
+- Vercel project `restore-worklife/restore-survey`
+- GitHub `devarshan/restore-survey`
+- Production site: https://conferences.restoreworklife.com
 
 ## Local
 
@@ -17,7 +19,11 @@ npm install
 npm run dev
 ```
 
-Set the three `VITE_*` values in `.env.local` from your Supabase project. `VITE_SERVER_URL` is `{VITE_SUPABASE_URL}/functions/v1/api`.
+Set the three `VITE_*` values in `.env.local` from the Restoreworklife Supabase project (`zpsizielqjyalntojrbk`). There is no fallback project. Missing vars fail at startup.
+
+- `VITE_SUPABASE_URL=https://zpsizielqjyalntojrbk.supabase.co`
+- `VITE_SERVER_URL=https://zpsizielqjyalntojrbk.supabase.co/functions/v1/api`
+- `VITE_SUPABASE_ANON_KEY` from that same project's anon/publishable key
 
 Open http://localhost:3000/?campaign=conference
 
@@ -25,7 +31,7 @@ Admin: http://localhost:3000/admin-login
 
 ## Edge Function secrets
 
-Configure these on the Supabase project. Do not put them in the repo.
+Configure these on Supabase project `zpsizielqjyalntojrbk`. Do not put them in the repo.
 
 - `ADMIN_PASSWORD`
 - `ADMIN_TOKEN_SECRET`
@@ -35,7 +41,9 @@ Configure these on the Supabase project. Do not put them in the repo.
 - `IP_HASH_SALT`
 - `MONTHLY_EMAIL_CAP`
 
-The `resend-webhook` function has JWT verification off so Resend/Svix HMAC can authenticate. Point the Resend webhook at `{SUPABASE_URL}/functions/v1/resend-webhook`.
+The `resend-webhook` function has JWT verification off so Resend/Svix HMAC can authenticate. Point the Resend webhook at:
+
+`https://zpsizielqjyalntojrbk.supabase.co/functions/v1/resend-webhook`
 
 ## Embed
 

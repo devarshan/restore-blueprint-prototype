@@ -10,11 +10,11 @@ const cors = {
 };
 
 const MAX_JSON_BYTES = 32 * 1024;
+const LEAD_LIST_LIMIT = 200;
+const LEAD_EXPORT_LIMIT = 5000;
 const TRACK_INTERACTIONS = new Set(["view", "next", "back", "complete", "abandon"]);
 const EMAIL_RE =
   /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)*$/;
-
-const rateHits = new Map<string, number[]>();
 
 function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
@@ -81,24 +81,29 @@ async function hashIp(req: Request): Promise<string> {
   return hmac(salt, clientIp(req));
 }
 
-function allowRate(key: string, max: number, windowMs: number): boolean {
-  const now = Date.now();
-  const recent = (rateHits.get(key) || []).filter((stamp) => now - stamp < windowMs);
-  if (recent.length >= max) {
-    rateHits.set(key, recent);
+async function allowRate(
+  client: SupabaseClient,
+  key: string,
+  max: number,
+  windowMs: number,
+): Promise<boolean> {
+  const { data, error } = await client.rpc("take_rate_limit", {
+    p_key: key,
+    p_max: max,
+    p_window_ms: windowMs,
+  });
+  if (error) {
+    console.error("rate limit rpc", error.message);
     return false;
   }
-  recent.push(now);
-  rateHits.set(key, recent);
-  if (rateHits.size > 5000) {
-    const oldest = now - 60 * 60 * 1000;
-    for (const [entryKey, stamps] of rateHits) {
-      const kept = stamps.filter((stamp) => stamp > oldest);
-      if (kept.length === 0) rateHits.delete(entryKey);
-      else rateHits.set(entryKey, kept);
-    }
-  }
-  return true;
+  return data === true;
+}
+
+function searchNeedle(raw: string): string | null {
+  const trimmed = raw.trim().slice(0, 80);
+  if (!trimmed) return null;
+  const safe = trimmed.replace(/[%_*,()\\]/g, " ").replace(/\s+/g, " ").trim();
+  return safe || null;
 }
 
 async function readJson(req: Request): Promise<{ body: Record<string, unknown> } | Response> {
@@ -146,7 +151,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "POST" && path === "/track/visitor") {
-      if (!allowRate(`track:${ipKey}`, 60, 60_000)) return json({ error: "Too many requests" }, 429);
+      if (!(await allowRate(client, `track:${ipKey}`, 60, 60_000))) return json({ error: "Too many requests" }, 429);
       const parsed = await readJson(req);
       if (parsed instanceof Response) return parsed;
       const body = parsed.body;
@@ -195,7 +200,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "POST" && path === "/track/event") {
-      if (!allowRate(`track:${ipKey}`, 60, 60_000)) return json({ error: "Too many requests" }, 429);
+      if (!(await allowRate(client, `track:${ipKey}`, 60, 60_000))) return json({ error: "Too many requests" }, 429);
       const parsed = await readJson(req);
       if (parsed instanceof Response) return parsed;
       const body = parsed.body;
@@ -230,7 +235,7 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "POST" && path === "/survey-completion") {
-      if (!allowRate(`complete:${ipKey}`, 10, 60 * 60 * 1000)) return json({ error: "Too many requests" }, 429);
+      if (!(await allowRate(client, `complete:${ipKey}`, 10, 60 * 60 * 1000))) return json({ error: "Too many requests" }, 429);
       const parsed = await readJson(req);
       if (parsed instanceof Response) return parsed;
       const body = parsed.body;
@@ -249,6 +254,7 @@ Deno.serve(async (req) => {
       const computed = calculateChronotype(answers);
       const chronotype = computed.chronotype;
       const peakHours = computed.peakHours;
+      const scoreFactors = computed.scoreFactors;
       const fullName = clip(body.fullName, 200).trim();
 
       const { data: existing } = await client.from("survey_completions")
@@ -265,6 +271,12 @@ Deno.serve(async (req) => {
         if (existing.resend_message_id) {
           return json({ emailSent: true, completionId });
         }
+        await client.from("survey_completions").update({
+          chronotype,
+          peak_hours: peakHours,
+          score_factors: scoreFactors,
+          all_responses: answers,
+        }).eq("id", existing.id);
       } else {
         const { data: created, error } = await client.from("survey_completions").insert({
           visitor_id: visitor.id,
@@ -274,6 +286,7 @@ Deno.serve(async (req) => {
           full_name: fullName || null,
           chronotype,
           peak_hours: peakHours,
+          score_factors: scoreFactors,
           all_responses: answers,
         }).select("id").single();
         if (error) return json({ error: error.message }, 500);
@@ -338,7 +351,7 @@ Deno.serve(async (req) => {
     if (path.startsWith("/admin") && path !== "/admin/login" && adminFail) return adminFail;
 
     if (req.method === "POST" && path === "/admin/login") {
-      if (!allowRate(`login:${ipKey}`, 5, 15 * 60 * 1000)) return json({ error: "Too many requests" }, 429);
+      if (!(await allowRate(client, `login:${ipKey}`, 5, 15 * 60 * 1000))) return json({ error: "Too many requests" }, 429);
       const parsed = await readJson(req);
       if (parsed instanceof Response) return parsed;
       const passwordSecret = Deno.env.get("ADMIN_PASSWORD") || "";
@@ -379,9 +392,8 @@ Deno.serve(async (req) => {
         const campaign = await getCampaign(client, campaignSlug);
         campaignId = campaign?.id ?? -1;
       }
-      const [{ data: stats, error: statsError }, visitors, { data: campaigns }, sent, delivered, opened, clicked, bounced, complaints] = await Promise.all([
+      const [{ data: stats, error: statsError }, { data: campaigns }, sent, delivered, opened, clicked, bounced, complaints] = await Promise.all([
         client.rpc("admin_overview_stats", { p_campaign_id: campaignId }),
-        client.from("visitors").select("id", { count: "exact", head: true }),
         client.from("campaigns").select("*"),
         countEvents(client, "sent"),
         countEvents(client, "delivered"),
@@ -392,6 +404,7 @@ Deno.serve(async (req) => {
       ]);
       if (statsError) return json({ error: statsError.message }, 500);
       const payload = (typeof stats === "string" ? JSON.parse(stats) : stats || {}) as {
+        visitors?: number;
         completed?: number;
         started?: number;
         chronotypes?: { horizon?: number; apex?: number; aurora?: number };
@@ -401,7 +414,7 @@ Deno.serve(async (req) => {
       const completed = Number(payload.completed || 0);
       const cap = Number(Deno.env.get("MONTHLY_EMAIL_CAP") || "1000");
       return json({
-        visitors: visitors.count || 0,
+        visitors: Number(payload.visitors || 0),
         started,
         completed,
         completionRate: started ? completed / started : 0,
@@ -417,19 +430,22 @@ Deno.serve(async (req) => {
     }
 
     if (req.method === "GET" && path === "/admin/leads") {
-      const q = url.searchParams.get("q")?.toLowerCase() || "";
+      const needle = searchNeedle(url.searchParams.get("q") || "");
       const campaignSlug = url.searchParams.get("campaign");
-      let query = client.from("survey_completions").select("*, campaigns(name, slug), visitors(user_agent, initial_utm_source, initial_utm_medium, initial_utm_campaign)").order("created_at", { ascending: false }).limit(200);
+      let query = client
+        .from("survey_completions")
+        .select("*, campaigns(name, slug), visitors(user_agent, initial_utm_source, initial_utm_medium, initial_utm_campaign)")
+        .order("created_at", { ascending: false })
+        .limit(LEAD_LIST_LIMIT);
       if (campaignSlug) {
         const campaign = await getCampaign(client, campaignSlug);
         if (campaign) query = query.eq("campaign_id", campaign.id);
       }
+      if (needle) {
+        query = query.or(`email.ilike.%${needle}%,full_name.ilike.%${needle}%`);
+      }
       const { data } = await query;
-      const leads = (data || []).filter((row) => {
-        if (!q) return true;
-        return `${row.email} ${row.full_name}`.toLowerCase().includes(q);
-      }).map(mapLead);
-      return json({ leads });
+      return json({ leads: (data || []).map(mapLead) });
     }
 
     if (req.method === "GET" && path.startsWith("/admin/leads/") && path !== "/admin/leads/export") {
@@ -452,14 +468,19 @@ Deno.serve(async (req) => {
 
     if (req.method === "GET" && path === "/admin/leads/export") {
       const campaignSlug = url.searchParams.get("campaign");
-      let query = client.from("survey_completions").select("*, campaigns(name, slug), visitors(initial_utm_source, initial_utm_medium, initial_utm_campaign)").order("created_at");
+      let query = client
+        .from("survey_completions")
+        .select("*, campaigns(name, slug), visitors(initial_utm_source, initial_utm_medium, initial_utm_campaign)")
+        .order("created_at", { ascending: false })
+        .limit(LEAD_EXPORT_LIMIT);
       if (campaignSlug) {
         const campaign = await getCampaign(client, campaignSlug);
         if (campaign) query = query.eq("campaign_id", campaign.id);
       }
       const { data } = await query;
+      const rows = [...(data || [])].reverse();
       const header = "email,name,campaign,chronotype,utm_source,utm_medium,utm_campaign,email_status,completed_at";
-      const lines = (data || []).map((row) => [
+      const lines = rows.map((row) => [
         row.email,
         row.full_name,
         row.campaigns?.slug,
@@ -498,6 +519,7 @@ function mapLead(row: Record<string, unknown>) {
     full_name: row.full_name,
     chronotype: row.chronotype,
     peak_hours: row.peak_hours,
+    score_factors: Array.isArray(row.score_factors) ? row.score_factors : [],
     campaign_slug: campaign?.slug,
     campaign_name: campaign?.name,
     email_status: row.email_status,

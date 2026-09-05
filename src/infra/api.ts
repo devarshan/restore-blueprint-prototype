@@ -162,6 +162,7 @@ export interface AdminLead {
   full_name: string | null;
   chronotype: string;
   peak_hours: string | null;
+  score_factors?: string[];
   campaign_slug: string;
   campaign_name: string;
   email_status: string;

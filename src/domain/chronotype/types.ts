@@ -52,6 +52,7 @@ export interface SurveyData {
 export interface ChronotypeResult {
   chronotype: Chronotype;
   score: number;
+  scoreFactors: string[];
   description: string;
   characteristics: string;
   firstPeakStart: string;
