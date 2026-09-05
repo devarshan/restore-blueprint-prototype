@@ -141,11 +141,9 @@ export function buildTemplateSend(vars: EmailVars): {
     RECIPIENT_NAME: vars.firstName.trim(),
     GREETING: greetingHtml(vars.firstName),
     SCHEDULE_IMAGE_URL: scheduleImageUrl(type),
+    INTRO: event ? eventIntro(event) : DEFAULT_INTRO,
+    EVENT_NAME: event || "",
   };
-  if (event) {
-    variables.EVENT_NAME = event;
-    variables.INTRO = eventIntro(event);
-  }
   return {
     templateId: resendTemplateId(type),
     variables,
