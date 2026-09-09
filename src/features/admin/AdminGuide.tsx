@@ -1,17 +1,20 @@
 import { SITE_ORIGIN } from '../../infra/env';
 import type { HealthReport } from './AdminHealth';
 
-const TOC = [
-  { id: 'guide-what', label: 'What this portal does' },
-  { id: 'guide-before', label: 'Before a conference' },
-  { id: 'guide-floor', label: 'On the floor' },
-  { id: 'guide-after', label: 'After the day' },
-  { id: 'guide-overview', label: 'Reading Dashboard' },
-  { id: 'guide-leads', label: 'Leads and email status' },
-  { id: 'guide-resend', label: 'Result email in Resend' },
-  { id: 'guide-status', label: 'System status' },
-  { id: 'guide-fail', label: 'If something fails' },
-  { id: 'guide-owner', label: 'Technical owner' },
+const PHASES = [
+  { id: 'guide-before', label: 'Before', cue: 'Create, print the QR, test one finish' },
+  { id: 'guide-floor', label: 'On the floor', cue: 'QR and link, Dashboard, missing mail' },
+  { id: 'guide-after', label: 'After', cue: 'Export CSV, scan bounced rows' },
+  { id: 'guide-fail', label: 'If it fails', cue: 'Wrong campaign, queued, bounced' },
+] as const;
+
+const LOOKUPS = [
+  { id: 'guide-what', label: 'This portal' },
+  { id: 'guide-overview', label: 'Dashboard' },
+  { id: 'guide-leads', label: 'Leads status' },
+  { id: 'guide-resend', label: 'Resend' },
+  { id: 'guide-status', label: 'Status' },
+  { id: 'guide-owner', label: 'Owner' },
 ] as const;
 
 export function AdminGuide({
@@ -28,7 +31,7 @@ export function AdminGuide({
       <header className="admin-page-head">
         <div>
           <p className="admin-guide-kicker">Guide</p>
-          <h1>Restore admin</h1>
+          <h1>Run the booth</h1>
           <p>
             How to run the chronotype survey from this portal: the floor link, the result email, and what to do when a
             number looks wrong.
@@ -36,17 +39,22 @@ export function AdminGuide({
         </div>
       </header>
 
-      <nav className="admin-guide-toc" aria-label="Guide contents">
-        <ol>
-          {TOC.map((item, index) => (
-            <li key={item.id}>
-              <a href={`#${item.id}`}>
-                <span>{String(index + 1).padStart(2, '0')}</span>
-                {item.label}
-              </a>
-            </li>
-          ))}
-        </ol>
+      <nav className="admin-guide-phases" aria-label="When to open this">
+        {PHASES.map((item) => (
+          <a key={item.id} href={`#${item.id}`}>
+            <span>{item.label}</span>
+            <em>{item.cue}</em>
+          </a>
+        ))}
+      </nav>
+
+      <nav className="admin-guide-lookup" aria-label="Look up">
+        <span>Look up</span>
+        {LOOKUPS.map((item) => (
+          <a key={item.id} href={`#${item.id}`}>
+            {item.label}
+          </a>
+        ))}
       </nav>
 
       <section id="guide-what">
@@ -55,25 +63,30 @@ export function AdminGuide({
           Restore runs a chronotype survey at conferences. A person answers the questions, receives Horizon, Apex, or
           Aurora, and is sent a result email with their two peak windows and the schedule card.
         </p>
-        <ul>
-          <li>
-            <strong>Dashboard</strong> shows traffic, finish rate, drop-off, and result-mail counts for the last 14 days.
-          </li>
-          <li>
-            <strong>Leads</strong> is everyone who finished and left an email. Open a row for answers and the mail log.
-          </li>
-          <li>
-            <strong>Campaigns</strong> is one conference or booth: name, URL slug, result-email design, link, QR, and
-            embed.
-          </li>
-        </ul>
+        <dl className="admin-guide-dl">
+          <div>
+            <dt>Dashboard</dt>
+            <dd>Traffic, finish rate, drop-off, and result-mail counts for the last 14 days.</dd>
+          </div>
+          <div>
+            <dt>Leads</dt>
+            <dd>Everyone who finished and left an email. Open a row for answers and the mail log.</dd>
+          </div>
+          <div>
+            <dt>Campaigns</dt>
+            <dd>One conference or booth: name, URL slug, result-email design, link, QR, and embed.</dd>
+          </div>
+        </dl>
         <p>
           Live site: {SITE_ORIGIN}. Admin sign-in: {SITE_ORIGIN}/admin-login. The survey questions are not edited here.
         </p>
       </section>
 
+      <p className="admin-guide-part">The day</p>
+
       <section id="guide-before">
-        <h2>Before a conference</h2>
+        <p className="admin-guide-when">Before</p>
+        <h2>Create the conference</h2>
         <ol className="admin-steps">
           <li>
             <div>
@@ -100,13 +113,14 @@ export function AdminGuide({
               <p>Save campaign. Copy the direct link. Download the QR for print.</p>
               <p className="admin-guide-note">
                 Use Page embed only if Restore sits inside another conference page. Use JavaScript widget if that page
-                already has its own layout. Inline is the usual booth-tablet mode.
+                already has its own layout. Inline is for a conference page or embed. Popup or slider if Restore sits
+                on a host site.
               </p>
             </div>
           </li>
           <li>
             <div>
-              <p>Open the campaign link on the booth tablet and complete one test finish to your own Restore address.</p>
+              <p>Open the campaign link on your phone and complete one test finish to your own Restore address.</p>
               <p className="admin-guide-note">
                 Confirm the result screen, then confirm the email arrived. If it did not, read Result email in Resend
                 and If something fails, below.
@@ -117,19 +131,23 @@ export function AdminGuide({
       </section>
 
       <section id="guide-floor">
-        <h2>On the floor</h2>
+        <p className="admin-guide-when">On the floor</p>
+        <h2>Keep the QR and link up</h2>
         <ol className="admin-steps">
           <li>
             <div>
-              <p>Keep the tablet on the campaign URL. After each person, return to the first screen.</p>
+              <p>
+                Print the QR or keep the campaign link visible. People scan or open it on their own phones. Each person
+                starts a new visit.
+              </p>
             </div>
           </li>
           <li>
             <div>
               <p>Open Dashboard. Finish rate is completions divided by starts, last 14 days.</p>
               <p className="admin-guide-note">
-                A pile-up on Welcome usually means the tablet sat on the first screen between visitors. A quiet chart
-                after the event is expected.
+                A pile-up on Welcome usually means the first screen sat open, or people opened the link and left. A
+                quiet chart after the event is expected.
               </p>
             </div>
           </li>
@@ -145,7 +163,8 @@ export function AdminGuide({
       </section>
 
       <section id="guide-after">
-        <h2>After the day</h2>
+        <p className="admin-guide-when">After</p>
+        <h2>Export and check bounced mail</h2>
         <ol className="admin-steps">
           <li>
             <div>
@@ -162,6 +181,42 @@ export function AdminGuide({
           </li>
         </ol>
       </section>
+
+      <section id="guide-fail">
+        <p className="admin-guide-when">If it fails</p>
+        <h2>Fix it on the floor</h2>
+        <dl className="admin-guide-dl">
+          <div>
+            <dt>QR or link opens an old campaign</dt>
+            <dd>Confirm the URL includes ?campaign= and the correct slug. Reprint the QR if the printed code is wrong.</dd>
+          </div>
+          <div>
+            <dt>Finish rate is very low</dt>
+            <dd>Read Where people stop. Welcome usually means the first screen sat open, or people opened the link and left.</dd>
+          </div>
+          <div>
+            <dt>Email status queued</dt>
+            <dd>The monthly cap is in the way, or the send is waiting. Open Dashboard for the cap, and Leads for that row.</dd>
+          </div>
+          <div>
+            <dt>Email status bounced</dt>
+            <dd>The address was rejected. There is nothing to resend from this portal. Collect a correct address.</dd>
+          </div>
+          <div>
+            <dt>Email status failed</dt>
+            <dd>
+              Resend did not send. Confirm the template is published. If Operations says Error, wait, then retry a
+              test finish.
+            </dd>
+          </div>
+          <div>
+            <dt>Cannot sign in</dt>
+            <dd>Use the conference admin password. After several misses the sign-in waits. Then try once more.</dd>
+          </div>
+        </dl>
+      </section>
+
+      <p className="admin-guide-part">Look up</p>
 
       <section id="guide-overview">
         <h2>Reading Dashboard</h2>
@@ -282,15 +337,15 @@ export function AdminGuide({
             </div>
           </li>
         </ol>
-        <p>
-          If Gmail clips a long layout, set that campaign to Night, save, and test again.
-        </p>
+        <p>If Gmail clips a long layout, set that campaign to Night, save, and test again.</p>
       </section>
 
       <section id="guide-status">
         <h2>System status</h2>
         <p>
-          Operations is checked about once a minute. Current reading: {health.title}, last checked {health.checked}.
+          Operations is checked about once a minute. Current reading:{' '}
+          <strong className={`admin-guide-health is-${health.level}`}>{health.title}</strong>, last checked{' '}
+          {health.checked}.
         </p>
         <dl className="admin-guide-dl">
           <div>
@@ -300,42 +355,9 @@ export function AdminGuide({
           <div>
             <dt>Error</dt>
             <dd>
-              Records did not load. Floor tablets may still show a cached survey, but new finishes will not save until
-              this returns. Retry in a minute. If it holds, call the technical owner.
+              Records did not load. Phones that already have the survey open may still show a cached copy, but new
+              finishes will not save until this returns. Retry in a minute. If it holds, call the technical owner.
             </dd>
-          </div>
-        </dl>
-      </section>
-
-      <section id="guide-fail">
-        <h2>If something fails</h2>
-        <dl className="admin-guide-dl">
-          <div>
-            <dt>Tablet shows an old campaign</dt>
-            <dd>Confirm the URL includes ?campaign= and the correct slug. Refresh once.</dd>
-          </div>
-          <div>
-            <dt>Finish rate is very low</dt>
-            <dd>Read Where people stop. Welcome usually means the tablet was left on the first screen.</dd>
-          </div>
-          <div>
-            <dt>Email status queued</dt>
-            <dd>The monthly cap is in the way, or the send is waiting. Open Dashboard for the cap, and Leads for that row.</dd>
-          </div>
-          <div>
-            <dt>Email status bounced</dt>
-            <dd>The address was rejected. There is nothing to resend from this portal. Collect a correct address.</dd>
-          </div>
-          <div>
-            <dt>Email status failed</dt>
-            <dd>
-              Resend did not send. Confirm the template is published. If Operations says Error, wait, then retry a
-              test finish.
-            </dd>
-          </div>
-          <div>
-            <dt>Cannot sign in</dt>
-            <dd>Use the conference admin password. After several misses the sign-in waits. Then try once more.</dd>
           </div>
         </dl>
       </section>

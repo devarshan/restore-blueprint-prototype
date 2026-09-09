@@ -642,8 +642,8 @@ body {
 }
 
 .admin-guide {
-  max-width: 42rem;
-  padding-bottom: 24px;
+  max-width: 44rem;
+  padding-bottom: 32px;
 }
 
 .admin-guide-kicker {
@@ -656,49 +656,114 @@ body {
   color: rgba(16, 37, 57, 0.45);
 }
 
-.admin-guide-toc {
-  margin: 8px 0 8px;
-  padding: 4px 0 8px;
-  border-top: 1px solid rgba(16, 37, 57, 0.12);
-  border-bottom: 1px solid rgba(16, 37, 57, 0.12);
+.admin-guide-phases {
+  display: flex;
+  flex-direction: column;
+  margin: 4px 0 14px;
+  border: 1px solid rgba(16, 37, 57, 0.12);
+  border-left: 3px solid #102539;
+  border-radius: 16px;
+  background: #fff;
+  overflow: hidden;
 }
 
-.admin-guide-toc ol {
-  margin: 0;
-  padding: 8px 0;
-  list-style: none;
-}
-
-.admin-guide-toc li + li {
-  margin-top: 2px;
-}
-
-.admin-guide-toc a {
-  display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: 10px;
-  min-height: 36px;
-  align-items: center;
-  font-family: var(--font-sans);
-  font-size: 0.95rem;
+.admin-guide-phases a {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 3px;
+  min-height: 56px;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(16, 37, 57, 0.1);
+  text-decoration: none;
   color: #102539;
 }
 
-.admin-guide-toc a span {
+.admin-guide-phases a:last-child {
+  border-bottom: 0;
+}
+
+.admin-guide-phases span {
+  font-family: var(--font-sans);
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+.admin-guide-phases em {
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  font-style: normal;
+  line-height: 1.35;
+  color: rgba(16, 37, 57, 0.55);
+}
+
+.admin-guide-lookup {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px 14px;
+  margin: 0 0 8px;
+  font-family: var(--font-sans);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.admin-guide-lookup span {
   font-size: 0.68rem;
-  letter-spacing: 0.12em;
-  color: rgba(16, 37, 57, 0.4);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(16, 37, 57, 0.45);
+}
+
+.admin-guide-lookup a {
+  color: rgba(16, 37, 57, 0.62);
+  text-decoration: none;
+}
+
+.admin-guide-lookup a:not(:last-child)::after {
+  content: "·";
+  margin-left: 14px;
+  color: rgba(16, 37, 57, 0.28);
+  pointer-events: none;
+}
+
+.admin-guide-part {
+  margin: 44px 0 0;
+  padding-top: 16px;
+  border-top: 1px solid rgba(16, 37, 57, 0.14);
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(16, 37, 57, 0.45);
+}
+
+.admin-guide-when {
+  margin: 0 0 6px;
+  font-family: var(--font-sans);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(16, 37, 57, 0.45);
 }
 
 .admin-guide section {
-  margin-top: 40px;
+  margin-top: 28px;
   scroll-margin-top: 16px;
+}
+
+.admin-guide .admin-guide-part + section {
+  margin-top: 12px;
 }
 
 .admin-guide h2 {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.2rem;
+  font-size: 1.28rem;
   font-weight: 600;
   letter-spacing: -0.02em;
 }
@@ -726,7 +791,8 @@ body {
   text-underline-offset: 3px;
 }
 
-.admin-guide-toc a {
+.admin-guide-phases a,
+.admin-guide-lookup a {
   text-decoration: none;
 }
 
@@ -739,7 +805,7 @@ body {
 
 .admin-steps > li {
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
+  grid-template-columns: 1.6rem minmax(0, 1fr);
   gap: 12px;
   padding: 14px 0;
   border-bottom: 1px solid rgba(16, 37, 57, 0.1);
@@ -749,14 +815,18 @@ body {
   color: #102539;
 }
 
+.admin-steps > li:last-child {
+  border-bottom: 0;
+}
+
 .admin-steps > li::before {
   counter-increment: restore-step;
-  content: counter(restore-step, decimal-leading-zero);
+  content: counter(restore-step);
   padding-top: 2px;
-  font-size: 0.68rem;
+  font-size: 0.8rem;
   font-weight: 600;
-  letter-spacing: 0.12em;
-  color: rgba(16, 37, 57, 0.4);
+  font-variant-numeric: tabular-nums;
+  color: rgba(16, 37, 57, 0.38);
 }
 
 .admin-guide-note {
@@ -772,17 +842,19 @@ body {
 }
 
 .admin-guide-go {
-  margin-top: 10px;
-  height: 36px;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 12px;
+  height: 40px;
+  padding: 0 14px;
+  border: 1px solid rgba(16, 37, 57, 0.16);
+  border-radius: 12px;
+  background: #fff;
   color: #102539;
   font-family: var(--font-sans);
-  font-size: 0.78rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+  font-size: 0.88rem;
+  font-weight: 600;
 }
 
 .admin-guide-dl {
@@ -794,6 +866,10 @@ body {
   gap: 4px;
   padding: 12px 0;
   border-bottom: 1px solid rgba(16, 37, 57, 0.1);
+}
+
+.admin-guide-dl > div:last-child {
+  border-bottom: 0;
 }
 
 .admin-guide-dl dt {
@@ -811,6 +887,19 @@ body {
   font-size: 0.92rem;
   line-height: 1.5;
   color: rgba(16, 37, 57, 0.7);
+}
+
+.admin-guide-health {
+  font-weight: 700;
+  color: #102539;
+}
+
+.admin-guide-health.is-error {
+  color: #8a2f2f;
+}
+
+.admin-guide-health.is-loading {
+  color: rgba(16, 37, 57, 0.55);
 }
 
 .admin-action {
@@ -1095,21 +1184,37 @@ body {
 }
 
 .admin-login {
+  /* Hall wash. Navy spine, paper plane, mist window-light.
+     Mobile 168deg: #102539 0/7%, #163648 14%, #f4f6f7 26/78%,
+     #d5ecee 92%, #bee1e3 100%.
+     Desktop 108deg: #102539 0/16%, #163648 26%, #f4f6f7 40/72%,
+     #d5ecee 90%, #bee1e3 100%. */
   position: relative;
   isolation: isolate;
   min-height: 100dvh;
   display: flex;
   align-items: flex-start;
   justify-content: flex-start;
-  overflow: hidden;
-  background: #f4f6f7;
+  overflow-x: hidden;
+  overflow-y: auto;
   color: #102539;
   color-scheme: light;
+  background-color: #102539;
+  background-image: linear-gradient(
+    168deg,
+    #102539 0%,
+    #102539 7%,
+    #163648 14%,
+    #f4f6f7 26%,
+    #f4f6f7 78%,
+    #d5ecee 92%,
+    #bee1e3 100%
+  );
   padding:
-    max(72px, 16vh, env(safe-area-inset-top, 0px))
-    max(24px, env(safe-area-inset-right, 0px))
-    max(36px, env(safe-area-inset-bottom, 0px))
-    max(24px, env(safe-area-inset-left, 0px));
+    max(28px, env(safe-area-inset-top, 0px))
+    max(16px, env(safe-area-inset-right, 0px))
+    max(24px, env(safe-area-inset-bottom, 0px))
+    max(16px, env(safe-area-inset-left, 0px));
 }
 
 .admin-login::before {
@@ -1118,29 +1223,74 @@ body {
   position: absolute;
   inset: 0;
   z-index: 0;
-  background:
-    radial-gradient(90% 58% at 94% 6%, rgba(190, 225, 227, 0.95) 0%, rgba(190, 225, 227, 0) 58%),
-    radial-gradient(70% 48% at 4% 96%, rgba(190, 225, 227, 0.22) 0%, rgba(190, 225, 227, 0) 52%);
+  background: radial-gradient(62% 46% at 100% 100%, #bee1e3 0%, rgba(190, 225, 227, 0) 68%);
+}
+
+.admin-login-bento {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "form"
+    "mark"
+    "origin";
+  gap: 7px;
+  width: 100%;
+  max-width: 23rem;
+}
+
+.admin-login-mark {
+  grid-area: mark;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 18px;
+  min-height: 6.75rem;
+  padding: 16px 18px 18px;
+  border-radius: 0;
+  background: #102539;
+  color: #fff;
+}
+
+.admin-login-mark-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.38rem;
+  font-weight: 600;
+  letter-spacing: -0.045em;
+  line-height: 1.08;
+}
+
+.admin-login-mark-note {
+  margin: 0;
+  max-width: 17rem;
+  font-family: var(--font-sans);
+  font-size: 0.8rem;
+  line-height: 1.4;
+  color: #bee1e3;
 }
 
 .admin-login-panel {
-  position: relative;
-  z-index: 1;
+  grid-area: form;
   width: 100%;
-  max-width: 20.5rem;
+  padding: 22px 20px 20px;
+  border: 1px solid rgba(16, 37, 57, 0.14);
+  border-radius: 2px;
+  background: #fff;
 }
 
 .admin-login-logo {
   display: block;
-  height: 34px;
-  max-height: 34px;
+  height: 30px;
+  max-height: 30px;
   width: auto;
 }
 
 .admin-login-title {
-  margin: 40px 0 0;
+  margin: 28px 0 0;
   font-family: var(--font-sans);
-  font-size: 1.85rem;
+  font-size: 1.7rem;
   font-weight: 600;
   letter-spacing: -0.04em;
   line-height: 1.1;
@@ -1149,7 +1299,7 @@ body {
 
 .admin-login-label {
   display: block;
-  margin: 32px 0 0;
+  margin: 28px 0 0;
   font-family: var(--font-sans);
   font-size: 0.72rem;
   font-weight: 500;
@@ -1188,7 +1338,7 @@ body {
   width: auto;
   min-width: 7.5rem;
   height: 44px;
-  margin-top: 28px;
+  margin-top: 26px;
   padding: 0 22px;
   align-items: center;
   justify-content: center;
@@ -1212,27 +1362,99 @@ body {
   outline-offset: 3px;
 }
 
+.admin-login-origin {
+  grid-area: origin;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  margin: 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(16, 37, 57, 0.12);
+  border-left: 3px solid #102539;
+  border-radius: 0;
+  background: #fff;
+  color: #102539;
+  font-family: var(--font-sans);
+  font-size: 0.84rem;
+  font-weight: 500;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.admin-login-origin span {
+  font-size: 0.62rem;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(16, 37, 57, 0.45);
+}
+
 @media (min-width: 768px) {
   .admin-login {
+    background-image: linear-gradient(
+      108deg,
+      #102539 0%,
+      #102539 16%,
+      #163648 26%,
+      #f4f6f7 40%,
+      #f4f6f7 72%,
+      #d5ecee 90%,
+      #bee1e3 100%
+    );
     padding:
-      max(88px, 18vh)
-      max(48px, env(safe-area-inset-right, 0px))
-      48px
-      max(64px, env(safe-area-inset-left, 0px));
+      max(48px, 9vh, env(safe-area-inset-top, 0px))
+      max(36px, env(safe-area-inset-right, 0px))
+      40px
+      max(32px, env(safe-area-inset-left, 0px));
+  }
+
+  .admin-login-bento {
+    max-width: 46rem;
+    grid-template-columns: minmax(0, 1fr) 15.25rem;
+    grid-template-rows: minmax(12rem, 1fr) auto;
+    grid-template-areas:
+      "form mark"
+      "form origin";
+    align-items: stretch;
+    gap: 8px 9px;
+  }
+
+  .admin-login-mark {
+    padding: 20px 18px 22px;
+  }
+
+  .admin-login-mark-title {
+    font-size: 1.62rem;
+  }
+
+  .admin-login-panel {
+    padding: 28px 28px 26px;
   }
 
   .admin-login-title {
-    font-size: 2.15rem;
+    margin-top: 36px;
+    font-size: 2.05rem;
+  }
+
+  .admin-login-origin {
+    padding: 14px 16px;
   }
 }
 
 @media (min-width: 1280px) {
   .admin-login {
-    padding-left: 11vw;
+    padding-left: max(40px, 4.5vw);
+    padding-top: max(52px, 9vh);
   }
 
-  .admin-login-panel {
-    max-width: 22rem;
+  .admin-login-bento {
+    max-width: 50rem;
+    grid-template-columns: minmax(0, 1fr) 16.25rem;
+  }
+
+  .admin-login-mark-title {
+    font-size: 1.78rem;
   }
 }
 
@@ -1766,6 +1988,15 @@ body {
     align-items: start;
   }
 
+  .admin-guide-phases a {
+    display: grid;
+    grid-template-columns: 7.75rem minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+    min-height: 50px;
+    padding: 10px 16px;
+  }
+
   .admin-cta-block {
     width: auto;
   }
@@ -1825,6 +2056,10 @@ body {
 }
 
 @media (max-width: 767px) {
+  .admin-guide-go {
+    width: 100%;
+  }
+
   .admin-rail-nav {
     display: grid;
     grid-template-columns: 1fr 1fr;

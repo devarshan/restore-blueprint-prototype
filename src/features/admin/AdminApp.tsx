@@ -35,7 +35,7 @@ const WIDGET_MODES: Array<{ key: WidgetMode; label: string; note: string }> = [
   {
     key: 'inline',
     label: 'Inline',
-    note: 'The survey sits on the page. Use this for a conference landing page or booth tablet.',
+    note: 'The survey sits on the page. Use this for a conference landing page or embed.',
   },
   {
     key: 'popup',
@@ -914,7 +914,8 @@ export function AdminApp() {
                     <p className="admin-label">
                       Direct link
                       <AdminHint label="Direct link">
-                        Open this URL on a phone or tablet at the booth. Each visit is counted under this campaign.
+                        Share this URL or print the QR. People open it on their own phones. Each visit is counted under
+                        this campaign.
                       </AdminHint>
                     </p>
                     <p className="admin-share-url">{campaignUrl}</p>
@@ -939,7 +940,7 @@ export function AdminApp() {
                   <p className="admin-label">
                     Widget mode
                     <AdminHint label="Widget mode">
-                      Inline for a booth tablet. Popup or slider only when Restore sits on another site.
+                      Inline for a conference page or embed. Popup or slider when Restore sits on another site.
                     </AdminHint>
                   </p>
                   <div className="admin-mode" role="group" aria-label="Widget mode">

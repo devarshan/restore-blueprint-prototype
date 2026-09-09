@@ -122,7 +122,7 @@ export function AdminOverviewPanel({
           <h2>
             Where people stop
             <AdminHint label="Drop-off">
-              The last step recorded before someone left. A pile-up on Welcome usually means the booth tablet sat on the first screen.
+              The last step recorded before someone left. A pile-up on Welcome usually means the first screen sat open, or people opened the link and left.
             </AdminHint>
           </h2>
           <BarList rows={dropOffRows(overview.dropOff)} />
