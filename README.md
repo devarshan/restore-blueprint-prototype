@@ -47,13 +47,15 @@ Configure these on Supabase project `zpsizielqjyalntojrbk`. Do not put them in t
 Result emails are sent with Resend Templates. Marketing picks the design per campaign in Admin → Campaigns → Result email, then Save campaign. Next completions on that campaign use that design.
 
 - Current: **Restore Apex schedule**, **Restore Aurora schedule**, **Restore Horizon schedule** (dark clock).
-- Concepts: **The Dossier**, **The Atelier**, **The Plate**, **The Folio** (paper, light plates) and **Midnight Brief** (dark).
+- Concepts: **White**, **Mist**, **Hours**, **Night**, **Split**. All use the real chronotype clock.
 
 To edit copy, open [Resend Templates](https://resend.com/templates), change the template, then **Publish**. Unpublished drafts do not affect live sends.
 
 Creating or listing templates via the API needs a Resend Full access key. The production `RESEND_API_KEY` can stay sending-access. After a dashboard edit, click **Publish**. Until then, live sends use the last published version.
 
-Bootstrap (Full access key only): `RESEND_API_KEY=... node scripts/create-resend-templates.mjs`
+Bootstrap or refresh the three live templates (Full access key only): `RESEND_API_KEY=... node scripts/create-resend-templates.mjs`
+
+Send one test of each chronotype through the published templates: `node scripts/create-resend-templates.mjs --send-only`
 
 The `resend-webhook` function has JWT verification off so Resend/Svix HMAC can authenticate. Point the Resend webhook at:
 

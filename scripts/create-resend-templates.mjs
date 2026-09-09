@@ -3,8 +3,11 @@
  * Requires RESEND_API_KEY with Full access (sending-access keys cannot create templates).
  *
  *   RESEND_API_KEY=... node scripts/create-resend-templates.mjs
+ *   RESEND_API_KEY=... node scripts/create-resend-templates.mjs --send
+ *
+ * Keep this HTML in lockstep with supabase/functions/api/emails.ts.
  */
-import { readFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -12,11 +15,16 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SITE = "https://conferences.restoreworklife.com";
 const LOGO_SRC = `${SITE}/static/images/restore-wordmark-light.png`;
 const LINKEDIN_URL = "https://www.linkedin.com/company/restore-enterprises-corporation";
+const NEWSLETTER_URL =
+  "https://restoreworklife.us17.list-manage.com/subscribe?u=cd448195689125cbea3ed644d&id=b85308afdd";
 const CONTACT_EMAIL = "michelle@restoreworklife.com";
 const CONTACT_URL = `mailto:${CONTACT_EMAIL}`;
 const NAVY = "#102539";
 const LINK = "#2F6FED";
 const TEXT = "#111111";
+const TEST_TO = "devarshanpatel@gmail.com";
+const PRODUCT_LINE =
+  "Restore is a workplace solution that brings energy-intelligent scheduling to the workplace. Using calendar and energy insights, we help reduce burnout, protect focus time, and improve sustainable performance.";
 const DEFAULT_INTRO =
   "Thank you for taking the Restore chronotype survey. We hope your results sparked some insights into how <strong>you</strong> naturally work best.";
 
@@ -76,7 +84,7 @@ function templateHtml(type) {
   const firstRange = `${copy.firstPeakStart} - ${copy.firstPeakEnd}`;
   const secondRange = `${copy.secondPeakStart} - ${copy.secondPeakEnd}`;
   const peakLine = `${copy.name}: ${firstRange} (${copy.firstLabel}) and ${secondRange} (${copy.secondLabel})`;
-  const preheader = `You are ${copy.article} ${copy.name}. Peak windows: ${firstRange} and ${secondRange}.`;
+  const preheader = `You are ${copy.article} ${copy.name} Chronotype. Peak windows: ${firstRange} and ${secondRange}.`;
   const scheduleAlt = `${copy.name} Schedule: ${firstRange} and ${secondRange}`;
   const subject = "You Found Us, Now Restore Your Workday";
   return `<!DOCTYPE html>
@@ -133,7 +141,7 @@ function templateHtml(type) {
                   {{{GREETING}}}
                   <p style="margin:0 0 12px;">{{{INTRO}}}</p>
                   <p style="margin:0 0 12px;">Here is more information about when your brain is at its most productive:</p>
-                  <p style="margin:0 0 12px;">You are ${copy.article} <strong>${copy.name}</strong>, ${copy.pattern}.</p>
+                  <p style="margin:0 0 12px;">You are ${copy.article} <strong>${copy.name} Chronotype</strong>, ${copy.pattern}.</p>
                   <p style="margin:0 0 12px;"><strong>${escapeHtml(peakLine)}</strong></p>
                   <p style="margin:0;">These peaks are your windows for deep work, creative flow, and problem-solving. In the surrounding hours, prioritize administrative work, check-in meetings, and 10-minute breaks to reset your cognitive performance.</p>
                 </td>
@@ -158,7 +166,7 @@ function templateHtml(type) {
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;background:${NAVY};">
               <tr>
                 <td class="email-pad" style="padding:18px 24px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#ffffff;text-align:center;">
-                  Restore is a B2B API that helps platforms increase productivity and measure burnout with energy-intelligent scheduling.
+                  ${PRODUCT_LINE}
                 </td>
               </tr>
             </table>
@@ -168,8 +176,8 @@ function templateHtml(type) {
           <td class="email-pad" align="left" style="padding:12px 24px 32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${TEXT};text-align:left;">
             <p style="margin:0 0 12px;"><strong>Join the future of work today.</strong></p>
             <p style="margin:0 0 10px;">1. ${link(LINKEDIN_URL, "Follow us on LinkedIn")} to join the movement.</p>
-            <p style="margin:0 0 10px;">2. Contact us at ${link(CONTACT_URL, CONTACT_EMAIL)} to discuss how Restore can make your product or platform energy intelligent.</p>
-            <p style="margin:0 0 18px;">3. Are you passionate about funding for the future of work, biotech, or life sciences? Email us at ${link(CONTACT_URL, CONTACT_EMAIL)} and we can talk more.</p>
+            <p style="margin:0 0 10px;">2. ${link(NEWSLETTER_URL, "Sign up for our newsletter")}.</p>
+            <p style="margin:0 0 18px;">3. Contact us at ${link(CONTACT_URL, CONTACT_EMAIL)} to discuss how Restore can make your product or platform energy intelligent.</p>
             <p style="margin:0;">Best,<br>The Restore Team</p>
           </td>
         </tr>
@@ -224,6 +232,47 @@ const TEMPLATES = [
   { type: "horizon", name: "Restore Horizon schedule", alias: "restore-horizon-schedule" },
 ];
 
+if (process.argv.includes("--dump")) {
+  const dir = "/tmp/restore-email-templates";
+  mkdirSync(dir, { recursive: true });
+  for (const spec of TEMPLATES) {
+    const file = join(dir, `${spec.type}.html`);
+    writeFileSync(file, templateHtml(spec.type));
+    console.log(`dump ${file}`);
+  }
+  process.exit(0);
+}
+
+async function sendChronotypeTests(apiKey, fromAddress) {
+  const firstName = "Devarshan";
+  const greeting = `<p style="margin:0 0 12px;">Hi ${firstName},</p>`;
+  const sent = [];
+  for (const spec of TEMPLATES) {
+    const result = await resend(apiKey, "POST", "/emails", {
+      from: fromAddress,
+      to: [TEST_TO],
+      template: {
+        id: spec.alias,
+        variables: {
+          GREETING: greeting,
+          INTRO: DEFAULT_INTRO,
+          RECIPIENT_NAME: firstName,
+          EVENT_NAME: " ",
+          SCHEDULE_IMAGE_URL: `${SITE}/static/images/email/${spec.type}-schedule.jpg`,
+        },
+      },
+      tags: [
+        { name: "campaign", value: "copy-review" },
+        { name: "chronotype", value: spec.type },
+      ],
+    });
+    console.log(`send alias=${spec.alias} status=${result.status} id=${result.json?.id || ""} message=${result.json?.message || ""}`);
+    sent.push({ alias: spec.alias, status: result.status, id: result.json?.id || null });
+  }
+  console.log(JSON.stringify({ sent }, null, 2));
+  return sent;
+}
+
 const fileEnv = {
   ...loadEnvFile(join(root, ".env.supabase.local")),
   ...loadEnvFile(join(root, ".env.company.secrets")),
@@ -241,6 +290,11 @@ const keyCandidates = [
 if (!keyCandidates.length) {
   console.error("RESEND_API_KEY missing");
   process.exit(1);
+}
+
+if (process.argv.includes("--send-only")) {
+  await sendChronotypeTests(keyCandidates[0], from);
+  process.exit(0);
 }
 
 let apiKey = "";
@@ -267,19 +321,8 @@ for (const row of listed.json?.data || []) {
   console.log(`existing id=${row.id} alias=${row.alias} name=${row.name} status=${row.status}`);
 }
 
-const created = [];
-for (const spec of TEMPLATES) {
-  const already = existing.get(spec.alias);
-  if (already) {
-    console.log(`skip_create alias=${spec.alias} id=${already.id} status=${already.status}`);
-    if (!already.published_at && already.status !== "published") {
-      const published = await resend(apiKey, "POST", `/templates/${already.id}/publish`);
-      console.log(`publish_existing alias=${spec.alias} status=${published.status} id=${published.json?.id || already.id} message=${published.json?.message || ""}`);
-    }
-    created.push({ ...spec, id: already.id, status: already.status });
-    continue;
-  }
-  const payload = {
+function templatePayload(spec) {
+  return {
     name: spec.name,
     alias: spec.alias,
     from,
@@ -293,24 +336,23 @@ for (const spec of TEMPLATES) {
       { key: "SCHEDULE_IMAGE_URL", type: "string", fallback_value: `${SITE}/static/images/email/${spec.type}-schedule.jpg` },
     ],
   };
-  const made = await resend(apiKey, "POST", "/templates", payload);
-  console.log(`create alias=${spec.alias} status=${made.status} id=${made.json?.id || ""} message=${made.json?.message || ""}`);
-  if (made.status >= 400 && payload.variables.some((item) => item.fallback_value === "")) {
-    payload.variables = payload.variables.map((item) => (
-      item.fallback_value === "" ? { ...item, fallback_value: " " } : item
-    ));
-    const retry = await resend(apiKey, "POST", "/templates", payload);
-    console.log(`create_retry alias=${spec.alias} status=${retry.status} id=${retry.json?.id || ""} message=${retry.json?.message || ""}`);
-    made.status = retry.status;
-    made.json = retry.json;
-  }
-  const id = made.json?.id;
+}
+
+const created = [];
+for (const spec of TEMPLATES) {
+  const already = existing.get(spec.alias);
+  const payload = templatePayload(spec);
+  const saved = already
+    ? await resend(apiKey, "PATCH", `/templates/${already.id}`, payload)
+    : await resend(apiKey, "POST", "/templates", payload);
+  console.log(`${already ? "update" : "create"} alias=${spec.alias} status=${saved.status} id=${saved.json?.id || already?.id || ""} message=${saved.json?.message || ""}`);
+  const id = saved.json?.id || already?.id;
   if (id) {
     const published = await resend(apiKey, "POST", `/templates/${id}/publish`);
     console.log(`publish alias=${spec.alias} status=${published.status} id=${published.json?.id || id} message=${published.json?.message || ""}`);
     created.push({ ...spec, id, status: "published" });
   } else {
-    created.push({ ...spec, id: null, status: "failed", message: made.json?.message || made.json?.name });
+    created.push({ ...spec, id: null, status: "failed", message: saved.json?.message || saved.json?.name });
   }
 }
 
@@ -320,3 +362,7 @@ for (const row of verify.json?.data || []) {
   console.log(`verify id=${row.id} alias=${row.alias} name=${row.name} status=${row.status}`);
 }
 console.log(JSON.stringify({ created }, null, 2));
+
+if (process.argv.includes("--send")) {
+  await sendChronotypeTests(apiKey, from);
+}

@@ -15,16 +15,35 @@ import {
   type CampaignRecord,
 } from '../../infra/api';
 import { DEFAULT_CAMPAIGN_SLUG } from '../../infra/campaign';
-import { EMAIL_DESIGN_OPTIONS, emailDesignLabel, parseEmailDesign, type EmailDesignKey } from '../../infra/emailDesigns';
+import { EMAIL_DESIGN_OPTIONS, emailDesignLabel, emailDesignNote, parseEmailDesign, type EmailDesignKey } from '../../infra/emailDesigns';
 import { SITE_ORIGIN } from '../../infra/env';
 import { clearAdminSession } from '../../infra/auth';
+import { AdminGuide } from './AdminGuide';
+import { AdminHint } from './AdminHint';
+import { AdminRailHealth, AdminStatusStrip, readHealth } from './AdminHealth';
 import { AdminOverviewPanel } from './AdminOverview';
 
-type Tab = 'overview' | 'leads' | 'campaigns';
+type Tab = 'overview' | 'leads' | 'campaigns' | 'guide';
 type WidgetMode = 'inline' | 'popup' | 'slider';
 
-const TABS: Tab[] = ['overview', 'leads', 'campaigns'];
-const WIDGET_MODES: WidgetMode[] = ['inline', 'popup', 'slider'];
+const TABS: Tab[] = ['overview', 'leads', 'campaigns', 'guide'];
+const WIDGET_MODES: Array<{ key: WidgetMode; label: string; note: string }> = [
+  {
+    key: 'inline',
+    label: 'Inline',
+    note: 'The survey sits on the page. Use this for a conference landing page or booth tablet.',
+  },
+  {
+    key: 'popup',
+    label: 'Popup',
+    note: 'The survey opens over the host page. Use this when Restore is a secondary block on a site.',
+  },
+  {
+    key: 'slider',
+    label: 'Slider',
+    note: 'The survey slides in from the side. Use this on a crowded page that should stay visible.',
+  },
+];
 
 function slugify(value: string): string {
   return value
@@ -34,29 +53,37 @@ function slugify(value: string): string {
     .replace(/^-|-$/g, '');
 }
 
-function widgetLabel(mode: WidgetMode): string {
-  switch (mode) {
-    case 'inline':
-      return 'Inline';
-    case 'popup':
-      return 'Popup';
-    case 'slider':
-      return 'Slider';
-    default: {
-      const _exhaustive: never = mode;
-      return _exhaustive;
-    }
+function emailStatusHint(status: string): string {
+  switch (status) {
+    case 'sent':
+      return 'Resend accepted the result email.';
+    case 'delivered':
+      return 'The mailbox accepted the result email.';
+    case 'opened':
+      return 'The result email was opened.';
+    case 'clicked':
+      return 'A link in the result email was clicked.';
+    case 'bounced':
+    case 'permanent_fail':
+      return 'The mailbox rejected the result email. Check the address.';
+    case 'failed':
+    case 'queued':
+      return 'The result email did not go out. It may be over the monthly cap, or Resend returned an error.';
+    default:
+      return 'Status of the chronotype result email for this completion.';
   }
 }
 
 function tabLabel(tab: Tab): string {
   switch (tab) {
     case 'overview':
-      return 'Overview';
+      return 'Dashboard';
     case 'leads':
       return 'Leads';
     case 'campaigns':
       return 'Campaigns';
+    case 'guide':
+      return 'Guide';
     default: {
       const _exhaustive: never = tab;
       return _exhaustive;
@@ -83,10 +110,13 @@ export function AdminApp() {
   const [copied, setCopied] = useState('');
   const [selectedSlug, setSelectedSlug] = useState(DEFAULT_CAMPAIGN_SLUG);
   const [emailDesign, setEmailDesign] = useState<EmailDesignKey>('default');
+  const [healthOverview, setHealthOverview] = useState<AdminOverview | null>(null);
+  const [recordsUp, setRecordsUp] = useState<boolean | null>(null);
+  const [checkedAt, setCheckedAt] = useState<Date | null>(null);
 
-  const campaignSlug = selectedSlug;
-  const campaignUrl = `${SITE_ORIGIN}/?campaign=${campaignSlug}`;
-  const embedUrl = `${SITE_ORIGIN}/embed?campaign=${campaignSlug}`;
+  const health = readHealth(healthOverview, recordsUp, checkedAt);
+  const campaignUrl = `${SITE_ORIGIN}/?campaign=${selectedSlug}`;
+  const embedUrl = `${SITE_ORIGIN}/embed?campaign=${selectedSlug}`;
   const pendingSlug = slugInput.trim() || slugify(name) || 'pending';
 
   const iframeSnippet = `<iframe src="${embedUrl}" title="Restore Survey" style="width:100%;min-height:640px;border:0;"></iframe>`;
@@ -94,7 +124,7 @@ export function AdminApp() {
 <script src="${SITE_ORIGIN}/widget.js" async></script>
 <script>
   window.RestoreWidget && RestoreWidget("init", {
-    campaign: "${campaignSlug}",
+    campaign: "${selectedSlug}",
     mode: "${mode}",
     target: "#restore-survey"
   });
@@ -103,17 +133,25 @@ export function AdminApp() {
   useEffect(() => {
     const html = document.documentElement;
     const previousBackground = html.style.background;
+    const previousHtmlOverflow = html.style.overflow;
+    const previousBodyOverflow = document.body.style.overflow;
     const previousColor = document.body.style.color;
     html.style.background = '#f4f6f7';
+    html.style.overflow = 'hidden';
+    document.body.style.overflow = 'hidden';
     document.body.style.color = '#102539';
     return () => {
       html.style.background = previousBackground;
+      html.style.overflow = previousHtmlOverflow;
+      document.body.style.overflow = previousBodyOverflow;
       document.body.style.color = previousColor;
     };
   }, []);
 
   useEffect(() => {
-    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    const main = document.querySelector('.admin-main');
+    if (main instanceof HTMLElement) main.scrollTop = 0;
+    else window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
   }, [tab]);
 
   useEffect(() => {
@@ -127,28 +165,94 @@ export function AdminApp() {
   }, [detail]);
 
   useEffect(() => {
-    adminOverview(campaignFilter || undefined)
-      .then(setOverview)
-      .catch((err: Error) => setError(err.message));
     adminCampaigns()
       .then((payload) => setCampaigns(payload.campaigns))
       .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    adminOverview(campaignFilter || undefined)
+      .then((data) => {
+        if (cancelled) return;
+        setOverview(data);
+        if (!campaignFilter) {
+          setHealthOverview(data);
+          setRecordsUp(true);
+          setCheckedAt(new Date());
+        }
+      })
+      .catch((err: Error) => {
+        if (cancelled) return;
+        setError(err.message);
+        if (!campaignFilter) {
+          setCheckedAt(new Date());
+          setRecordsUp(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [campaignFilter]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    function ping() {
+      adminOverview()
+        .then((data) => {
+          if (cancelled) return;
+          setHealthOverview(data);
+          setRecordsUp(true);
+          setCheckedAt(new Date());
+        })
+        .catch(() => {
+          if (cancelled) return;
+          setCheckedAt(new Date());
+          setRecordsUp(false);
+        });
+    }
+
+    const timer = window.setInterval(ping, 60_000);
+    if (campaignFilter) ping();
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
   }, [campaignFilter]);
 
   useEffect(() => {
     if (tab !== 'leads') return;
-    adminLeads({ campaign: campaignFilter || undefined, q: query || undefined })
-      .then((payload) => setLeads(payload.leads))
-      .catch((err: Error) => setError(err.message));
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      adminLeads({ campaign: campaignFilter || undefined, q: query || undefined })
+        .then((payload) => {
+          if (!cancelled) setLeads(payload.leads);
+        })
+        .catch((err: Error) => {
+          if (!cancelled) setError(err.message);
+        });
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
   }, [tab, campaignFilter, query]);
 
   useEffect(() => {
+    if (tab !== 'campaigns') return;
+    let cancelled = false;
     QRCode.toDataURL(campaignUrl, {
-      width: 640,
+      width: 320,
       margin: 2,
       color: { dark: '#0e1f2c', light: '#f1ebe1' },
-    }).then(setQr);
-  }, [campaignUrl]);
+    }).then((url) => {
+      if (!cancelled) setQr(url);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [tab, campaignUrl]);
 
   function logout() {
     clearAdminSession();
@@ -159,6 +263,14 @@ export function AdminApp() {
     setTab(next);
     setDetail(null);
     setError('');
+  }
+
+  function startNewCampaign() {
+    setName('');
+    setSlugInput('');
+    setEmailDesign('default');
+    setNotice('');
+    goTab('campaigns');
   }
 
   async function openLead(id: number) {
@@ -211,60 +323,84 @@ export function AdminApp() {
   }
 
   return (
-    <div className="admin-shell">
-      <header className="admin-top">
-        <div className="admin-brand">
-          <div className="flex min-w-0 items-center gap-3">
-            <RestoreLogo variant="light" className="h-7 max-h-7 w-auto" />
-            <p className="hidden font-sans text-sm font-semibold sm:block">Admin</p>
-          </div>
-          <button type="button" onClick={logout} className="h-11 shrink-0 px-1 font-sans text-sm text-ink/70">
+    <div className="admin-shell admin-shell-app">
+      <aside className="admin-rail" aria-label="Admin">
+        <div className="admin-rail-brand">
+          <RestoreLogo variant="dark" className="admin-rail-logo" />
+          <p>Admin</p>
+        </div>
+        <nav className="admin-rail-nav" aria-label="Sections">
+          {TABS.map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => goTab(item)}
+              className={tab === item ? 'is-on' : ''}
+              aria-current={tab === item ? 'page' : undefined}
+            >
+              {tabLabel(item)}
+            </button>
+          ))}
+        </nav>
+        <button type="button" className="admin-rail-create" onClick={startNewCampaign}>
+          Create campaign
+        </button>
+        <p className="admin-rail-note">Adds a conference or booth: link, QR, embed, and result email.</p>
+        <div className="admin-rail-foot">
+          <AdminRailHealth health={health} />
+          <button type="button" className="admin-rail-out" onClick={logout}>
             Log out
           </button>
         </div>
-        <div className="admin-chrome">
-          <nav className="admin-tabs" aria-label="Admin sections">
-            {TABS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => goTab(item)}
-                className={`admin-tab ${tab === item ? 'is-on' : ''}`}
-              >
-                {tabLabel(item)}
-              </button>
-            ))}
-          </nav>
-          {tab !== 'campaigns' ? (
-            <div className="admin-filter-row">
-              <label htmlFor="campaignFilter" className="shrink-0 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">
-                Campaign
-              </label>
-              <select
-                id="campaignFilter"
-                value={campaignFilter}
-                onChange={(event) => {
-                  setCampaignFilter(event.target.value);
-                  if (event.target.value) setSelectedSlug(event.target.value);
-                }}
-              >
-                <option value="">All campaigns</option>
-                {campaigns.map((item) => (
-                  <option key={item.id} value={item.slug}>
-                    {item.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          ) : null}
-        </div>
-      </header>
+      </aside>
 
-      <main className="admin-main">
+      <div className="admin-stage">
+        <AdminStatusStrip health={health} />
+        <main className="admin-main">
         {error ? <p className="mb-4 font-sans text-sm text-red-800">{error}</p> : null}
 
+        {tab === 'overview' ? (
+          <div className="admin-page-head">
+            <div>
+              <h1>Dashboard</h1>
+              <p>
+                Traffic and result emails for the last 14 days. Use the campaign menu to isolate one conference.
+              </p>
+            </div>
+            <button type="button" className="admin-cta" onClick={startNewCampaign}>
+              Create campaign
+            </button>
+          </div>
+        ) : null}
+
+        {tab === 'overview' || tab === 'leads' ? (
+          <div className="admin-filter-row">
+            <label htmlFor="campaignFilter">
+              Campaign
+              <AdminHint label="Campaign filter">
+                Limits this page to one conference. Choose All campaigns to see the combined picture.
+              </AdminHint>
+            </label>
+            <select
+              id="campaignFilter"
+              value={campaignFilter}
+              onChange={(event) => {
+                setCampaignFilter(event.target.value);
+                if (event.target.value) setSelectedSlug(event.target.value);
+              }}
+            >
+              <option value="">All campaigns</option>
+              {campaigns.map((item) => (
+                <option key={item.id} value={item.slug}>
+                  {item.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : null}
+
         {tab === 'overview' && !overview && !error ? (
-          <p className="font-sans text-sm text-ink/50">Loading overview.</p>
+          <p className="font-sans text-sm text-ink/50">Loading dashboard.</p>
         ) : null}
 
         {tab === 'overview' && overview ? (
@@ -273,10 +409,19 @@ export function AdminApp() {
 
         {tab === 'leads' ? (
           <section>
+            <div className="admin-page-head">
+              <div>
+                <h1>Leads</h1>
+                <p>People who finished the survey. Click a row for answers and the result-email log.</p>
+              </div>
+            </div>
             <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
               <div className="w-full md:flex-1">
-                <label htmlFor="search" className="block font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">
+                <label htmlFor="search" className="admin-label block">
                   Search
+                  <AdminHint label="Lead search">
+                    Search by name or email. The campaign menu above still applies.
+                  </AdminHint>
                 </label>
                 <input
                   id="search"
@@ -285,9 +430,14 @@ export function AdminApp() {
                   className="admin-field max-w-none md:max-w-md"
                 />
               </div>
-              <button type="button" onClick={() => void exportCsv()} className="admin-cta admin-cta-block md:w-auto">
-                Export CSV
-              </button>
+              <div>
+                <button type="button" onClick={() => void exportCsv()} className="admin-cta admin-cta-block md:w-auto">
+                  Export CSV
+                </button>
+                <p className="mt-2 max-w-xs font-sans text-xs text-ink/45">
+                  Downloads the current list, including the campaign filter.
+                </p>
+              </div>
             </div>
 
             <div className="mt-6 md:hidden">
@@ -311,7 +461,12 @@ export function AdminApp() {
                     <th className="py-3 pr-4 font-medium">Email</th>
                     <th className="py-3 pr-4 font-medium">Campaign</th>
                     <th className="py-3 pr-4 font-medium">Type</th>
-                    <th className="py-3 pr-4 font-medium">Email status</th>
+                    <th className="py-3 pr-4 font-medium">
+                      Email status
+                      <AdminHint label="Email status">
+                        sent: Resend accepted it. delivered: the mailbox accepted it. opened or clicked: the person used the email. bounced or failed: it did not arrive. queued: held for the monthly cap.
+                      </AdminHint>
+                    </th>
                     <th className="py-3 font-medium">Date</th>
                   </tr>
                 </thead>
@@ -348,9 +503,10 @@ export function AdminApp() {
                 <p className="mt-1 font-sans text-sm capitalize text-ink/60">
                   {detail.lead.chronotype} · {detail.lead.email_status}
                 </p>
+                <p className="mt-1 font-sans text-sm text-ink/50">{emailStatusHint(detail.lead.email_status)}</p>
                 {detail.lead.score_factors?.length ? (
                   <>
-                    <h3 className="mt-6 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Score factors</h3>
+                    <h3 className="admin-label mt-6">Score factors</h3>
                     <ul className="mt-3 space-y-2 font-sans text-sm">
                       {detail.lead.score_factors.map((factor) => (
                         <li key={factor}>{factor}</li>
@@ -358,7 +514,7 @@ export function AdminApp() {
                     </ul>
                   </>
                 ) : null}
-                <h3 className="mt-6 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Answers</h3>
+                <h3 className="admin-label mt-6">Answers</h3>
                 <ul className="mt-3 space-y-2 font-sans text-sm">
                   {detail.answers.map((answer) => (
                     <li key={`${answer.step}-${answer.question}`}>
@@ -367,7 +523,7 @@ export function AdminApp() {
                     </li>
                   ))}
                 </ul>
-                <h3 className="mt-6 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Email events</h3>
+                <h3 className="admin-label mt-6">Email events</h3>
                 <ul className="mt-3 space-y-2 font-sans text-sm">
                   {detail.emailEvents.map((event, index) => (
                     <li key={`${event.event_type}-${index}`}>
@@ -383,33 +539,48 @@ export function AdminApp() {
         {tab === 'campaigns' ? (
           <section className="grid items-start gap-8 md:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)] md:gap-10">
             <div>
+              <div className="admin-page-head">
+                <div>
+                  <h1>Campaigns</h1>
+                  <p>Create a conference or booth, then send the link, QR, or embed to the floor team.</p>
+                </div>
+              </div>
               <h2 className="font-sans text-xl font-bold md:text-2xl">Create campaign</h2>
               <p className="mt-1 font-sans text-sm text-ink/55">
-                Saves a named campaign, then gives you a link, embed, and QR for that slug.
+                Save writes the campaign. The link, embed code, and QR on the right update for the selected slug.
               </p>
-              <label htmlFor="campaignName" className="mt-5 block font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">
+              <label htmlFor="campaignName" className="admin-label mt-5 block">
                 Campaign name
+                <AdminHint label="Campaign name">
+                  The name shown on the survey and in this admin. Example: Future of Work.
+                </AdminHint>
               </label>
               <input
                 id="campaignName"
                 value={name}
                 onChange={(event) => setName(event.target.value)}
-                placeholder="Acme Summit"
+                placeholder="Future of Work"
                 className="admin-field"
               />
-              <label htmlFor="campaignSlug" className="mt-4 block font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">
+              <label htmlFor="campaignSlug" className="admin-label mt-4 block">
                 Slug
+                <AdminHint label="Campaign slug">
+                  Short name in the URL. Letters, numbers, and hyphens only. Example: future-of-work becomes /?campaign=future-of-work
+                </AdminHint>
               </label>
               <input
                 id="campaignSlug"
                 value={slugInput}
                 onChange={(event) => setSlugInput(slugify(event.target.value))}
-                placeholder={slugify(name) || 'acme-summit'}
+                placeholder={slugify(name) || 'future-of-work'}
                 className="admin-field"
               />
               <p className="mt-2 break-all font-sans text-sm text-ink/40">URL: /?campaign={pendingSlug}</p>
-              <label htmlFor="emailDesign" className="mt-4 block font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">
+              <label htmlFor="emailDesign" className="admin-label mt-4 block">
                 Result email
+                <AdminHint label="Result email">
+                  Which result email this campaign sends after someone finishes. The survey questions do not change. To edit the wording, open the matching template in Resend and click Publish.
+                </AdminHint>
               </label>
               <select
                 id="emailDesign"
@@ -424,22 +595,29 @@ export function AdminApp() {
                 ))}
               </select>
               <p className="mt-2 font-sans text-sm text-ink/50">
-                Completions on this campaign send this design. Edit copy in Resend, then Publish. This does not change the
-                survey.
+                {emailDesignNote(emailDesign)}
               </p>
-              <p className="mt-4 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Widget mode</p>
+              <p className="admin-label mt-4">
+                Widget mode
+                <AdminHint label="Widget mode">
+                  Inline for a booth tablet. Popup or slider only when Restore sits on another site.
+                </AdminHint>
+              </p>
               <div className="admin-mode" role="group" aria-label="Widget mode">
                 {WIDGET_MODES.map((item) => (
                   <button
-                    key={item}
+                    key={item.key}
                     type="button"
-                    onClick={() => setMode(item)}
-                    className={mode === item ? 'is-on' : ''}
+                    onClick={() => setMode(item.key)}
+                    className={mode === item.key ? 'is-on' : ''}
                   >
-                    {widgetLabel(item)}
+                    {item.label}
                   </button>
                 ))}
               </div>
+              <p className="mt-2 font-sans text-sm text-ink/50">
+                {WIDGET_MODES.find((item) => item.key === mode)?.note ?? WIDGET_MODES[0].note}
+              </p>
               <button
                 type="button"
                 onClick={() => void createCampaign()}
@@ -450,7 +628,10 @@ export function AdminApp() {
               </button>
               {notice ? <p className="mt-3 font-sans text-sm text-ink/70">{notice}</p> : null}
 
-              <h3 className="mt-8 font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase">Existing</h3>
+              <h3 className="admin-label mt-8">Saved campaigns</h3>
+              <p className="mt-1 font-sans text-sm text-ink/50">
+                Click a conference to load its link, QR, and embed. The right column is the result email.
+              </p>
               <ul className="mt-2 divide-y divide-ink/10 border-y border-ink/10">
                 {campaigns.map((item) => (
                   <li key={item.id}>
@@ -465,7 +646,7 @@ export function AdminApp() {
                         setNotice('');
                       }}
                       className={`flex min-h-12 w-full items-center justify-between gap-3 px-1 text-left font-sans text-sm ${
-                        campaignSlug === item.slug ? 'text-ink' : 'text-ink/55'
+                        selectedSlug === item.slug ? 'text-ink' : 'text-ink/55'
                       }`}
                     >
                       <span className="min-w-0 truncate font-semibold">{item.name}</span>
@@ -476,8 +657,17 @@ export function AdminApp() {
               </ul>
             </div>
             <div>
-              <h2 className="font-sans text-xl font-bold md:text-2xl">Snippets</h2>
-              <div className="mt-3 flex items-start justify-between gap-3">
+              <h2 className="font-sans text-xl font-bold md:text-2xl">Share this campaign</h2>
+              <p className="mt-1 font-sans text-sm text-ink/55">
+                Give the floor team the link or QR. Use embed only if Restore sits on another site.
+              </p>
+              <p className="admin-label mt-4">
+                Direct link
+                <AdminHint label="Direct link">
+                  Open this URL on a phone or tablet at the booth. Each visit is counted under this campaign.
+                </AdminHint>
+              </p>
+              <div className="mt-2 flex items-start justify-between gap-3">
                 <p className="min-w-0 break-all font-sans text-sm text-ink/60">{campaignUrl}</p>
                 <button
                   type="button"
@@ -487,29 +677,60 @@ export function AdminApp() {
                   {copied === 'link' ? 'Copied' : 'Copy'}
                 </button>
               </div>
-              <Snippet label="iframe" value={iframeSnippet} copied={copied} onCopy={copy} />
-              <Snippet label="javascript" value={jsSnippet} copied={copied} onCopy={copy} />
+              <Snippet
+                label="Page embed"
+                hint="Paste this on a conference page when the survey should sit in the layout."
+                value={iframeSnippet}
+                copied={copied}
+                onCopy={copy}
+              />
+              <Snippet
+                label="JavaScript widget"
+                hint="Paste this when the host page already has its own layout. Set mode above first."
+                value={jsSnippet}
+                copied={copied}
+                onCopy={copy}
+              />
               {qr ? (
-                <a href={qr} download={`${campaignSlug}-qr.png`} className="mt-8 inline-block">
-                  <img src={qr} alt="Campaign QR code" className="h-40 w-40 rounded-[12px] bg-paper" />
-                  <span className="mt-2 block font-sans text-[0.72rem] tracking-[0.14em] uppercase">Download QR</span>
-                </a>
+                <div className="mt-8">
+                  <p className="admin-label">
+                    QR code
+                    <AdminHint label="QR code">
+                      Print this for the booth. It opens the same campaign link.
+                    </AdminHint>
+                  </p>
+                  <a href={qr} download={`${selectedSlug}-qr.png`} className="mt-3 inline-block">
+                    <img src={qr} alt="Campaign QR code" className="h-40 w-40 bg-paper" />
+                    <span className="mt-2 block font-sans text-[0.72rem] tracking-[0.14em] uppercase">Download QR</span>
+                  </a>
+                </div>
               ) : null}
             </div>
           </section>
         ) : null}
+
+        {tab === 'guide' ? (
+          <AdminGuide
+            health={health}
+            onOpenCampaigns={() => goTab('campaigns')}
+            onOpenLeads={() => goTab('leads')}
+          />
+        ) : null}
       </main>
+      </div>
     </div>
   );
 }
 
 function Snippet({
   label,
+  hint,
   value,
   copied,
   onCopy,
 }: {
   label: string;
+  hint: string;
   value: string;
   copied: string;
   onCopy: (label: string, value: string) => void;
@@ -517,11 +738,12 @@ function Snippet({
   return (
     <div className="admin-snippet mt-6">
       <div className="flex items-center justify-between">
-        <p className="font-sans text-[0.68rem] tracking-[0.16em] uppercase">{label}</p>
+        <p className="admin-label">{label}</p>
         <button type="button" onClick={() => onCopy(label, value)} className="h-11 px-1 text-sm text-ink/50">
           {copied === label ? 'Copied' : 'Copy'}
         </button>
       </div>
+      <p className="mt-1 font-sans text-sm text-ink/50">{hint}</p>
       <pre className="mt-2 bg-ink/[0.04] p-3 font-sans text-xs leading-5">{value}</pre>
     </div>
   );

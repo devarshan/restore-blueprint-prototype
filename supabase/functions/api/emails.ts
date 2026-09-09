@@ -20,12 +20,16 @@ interface ChronotypeCopy {
 const SITE = "https://conferences.restoreworklife.com";
 const LOGO_SRC = `${SITE}/static/images/restore-wordmark-light.png`;
 const LINKEDIN_URL = "https://www.linkedin.com/company/restore-enterprises-corporation";
+const NEWSLETTER_URL =
+  "https://restoreworklife.us17.list-manage.com/subscribe?u=cd448195689125cbea3ed644d&id=b85308afdd";
 const CONTACT_EMAIL = "michelle@restoreworklife.com";
 const CONTACT_URL = `mailto:${CONTACT_EMAIL}`;
 export const SCHEDULE_CID = "chronotype-schedule";
 const NAVY = "#102539";
 const LINK = "#2F6FED";
 const TEXT = "#111111";
+const PRODUCT_LINE =
+  "Restore is a workplace solution that brings energy-intelligent scheduling to the workplace. Using calendar and energy insights, we help reduce burnout, protect focus time, and improve sustainable performance.";
 
 const COPY: Record<ChronotypeName, ChronotypeCopy> = {
   horizon: {
@@ -112,10 +116,9 @@ export function parseEmailDesign(value: string): EmailDesignKey {
   }
 }
 
-export function scheduleImageUrl(chronotype: string, tone: "dark" | "light" = "dark"): string {
+export function scheduleImageUrl(chronotype: string): string {
   const type = resolveChronotype(chronotype);
-  const suffix = tone === "light" ? "-light" : "";
-  return `${SITE}/static/images/email/${type}-schedule${suffix}.jpg`;
+  return `${SITE}/static/images/email/${type}-schedule.jpg`;
 }
 
 export function eventIntro(event: string): string {
@@ -194,13 +197,12 @@ export function buildTemplateSend(vars: EmailVars): {
 } {
   const type = resolveChronotype(vars.chronotype);
   const design = parseEmailDesign(vars.templateKey);
-  const tone = design === "midnight" || design === "default" ? "dark" : "light";
   const { subject, event, override } = resultsEmailSubject(vars.campaignName, vars.templateKey);
   const layout = chronotypeLayout(type);
   const variables: Record<string, string> = {
     RECIPIENT_NAME: vars.firstName.trim(),
     GREETING: greetingHtml(vars.firstName),
-    SCHEDULE_IMAGE_URL: scheduleImageUrl(type, tone),
+    SCHEDULE_IMAGE_URL: scheduleImageUrl(type),
     INTRO: event ? eventIntro(event) : DEFAULT_INTRO,
     EVENT_NAME: event || " ",
   };
@@ -273,7 +275,7 @@ function chronotypeLayout(type: ChronotypeName): {
     firstRange,
     secondRange,
     peakLine,
-    preheader: `You are ${copy.article} ${name}. Peak windows: ${firstRange} and ${secondRange}.`,
+    preheader: `You are ${copy.article} ${name} Chronotype. Peak windows: ${firstRange} and ${secondRange}.`,
     scheduleAlt: `${name} Schedule: ${firstRange} and ${secondRange}`,
   };
 }
@@ -344,7 +346,7 @@ function renderEmailHtml(opts: {
                   ${opts.greeting}
                   <p style="margin:0 0 12px;">${opts.intro}</p>
                   <p style="margin:0 0 12px;">Here is more information about when your brain is at its most productive:</p>
-                  <p style="margin:0 0 12px;">You are ${opts.article} <strong>${opts.name}</strong>, ${opts.pattern}.</p>
+                  <p style="margin:0 0 12px;">You are ${opts.article} <strong>${opts.name} Chronotype</strong>, ${opts.pattern}.</p>
                   <p style="margin:0 0 12px;"><strong>${escapeHtml(opts.peakLine)}</strong></p>
                   <p style="margin:0;">These peaks are your windows for deep work, creative flow, and problem-solving. In the surrounding hours, prioritize administrative work, check-in meetings, and 10-minute breaks to reset your cognitive performance.</p>
                 </td>
@@ -369,7 +371,7 @@ function renderEmailHtml(opts: {
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="width:100%;background:${NAVY};">
               <tr>
                 <td class="email-pad" style="padding:18px 24px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#ffffff;text-align:center;">
-                  Restore is a B2B API that helps platforms increase productivity and measure burnout with energy-intelligent scheduling.
+                  ${PRODUCT_LINE}
                 </td>
               </tr>
             </table>
@@ -379,8 +381,8 @@ function renderEmailHtml(opts: {
           <td class="email-pad" align="left" style="padding:12px 24px 32px;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.55;color:${TEXT};text-align:left;">
             <p style="margin:0 0 12px;"><strong>Join the future of work today.</strong></p>
             <p style="margin:0 0 10px;">1. ${link(LINKEDIN_URL, "Follow us on LinkedIn")} to join the movement.</p>
-            <p style="margin:0 0 10px;">2. Contact us at ${link(CONTACT_URL, CONTACT_EMAIL)} to discuss how Restore can make your product or platform energy intelligent.</p>
-            <p style="margin:0 0 18px;">3. Are you passionate about funding for the future of work, biotech, or life sciences? Email us at ${link(CONTACT_URL, CONTACT_EMAIL)} and we can talk more.</p>
+            <p style="margin:0 0 10px;">2. ${link(NEWSLETTER_URL, "Sign up for our newsletter")}.</p>
+            <p style="margin:0 0 18px;">3. Contact us at ${link(CONTACT_URL, CONTACT_EMAIL)} to discuss how Restore can make your product or platform energy intelligent.</p>
             <p style="margin:0;">Best,<br>The Restore Team</p>
           </td>
         </tr>
