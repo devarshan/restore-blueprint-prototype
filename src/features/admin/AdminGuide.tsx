@@ -31,7 +31,7 @@ export function AdminGuide({
           <h1>Restore admin</h1>
           <p>
             How to run the chronotype survey from this portal: the floor link, the result email, and what to do when a
-            number looks wrong. Keep this page on the booth laptop.
+            number looks wrong.
           </p>
         </div>
       </header>

@@ -11,7 +11,7 @@ const LOGO_SOURCES: Record<'dark' | 'light', string> = {
 export function RestoreLogo({ className = '', variant = 'dark' }: RestoreLogoProps) {
   const primarySrc = LOGO_SOURCES[variant];
   const alternateSrc = LOGO_SOURCES[variant === 'dark' ? 'light' : 'dark'];
-  const hasSize = /(?:^|\s)(?:h-|max-h-|size-|w-|survey-brand|admin-rail-logo)/.test(className);
+  const hasSize = /(?:^|\s)(?:h-|max-h-|size-|w-|survey-brand|admin-rail-logo|admin-login-logo)/.test(className);
 
   return (
     <img

@@ -393,12 +393,22 @@ Deno.serve(async (req) => {
       const parsed = await readJson(req);
       if (parsed instanceof Response) return parsed;
       const slug = clip(parsed.body.slug, 80).toLowerCase();
-      const { data, error } = await client.from("campaigns").upsert({
-        name: clip(parsed.body.name, 120),
+      const name = clip(parsed.body.name, 120);
+      if (!name) return json({ error: "Enter a campaign name." }, 400);
+      if (!slug) return json({ error: "Enter a campaign slug." }, 400);
+
+      const { data: existing } = await client.from("campaigns").select("id").eq("slug", slug).maybeSingle();
+      if (existing) return json({ error: "A campaign with that slug already exists." }, 409);
+
+      const { data, error } = await client.from("campaigns").insert({
+        name,
         slug,
         email_template_key: clip(parsed.body.emailTemplateKey || "default", 80),
-      }, { onConflict: "slug" }).select("*").single();
-      if (error) return json({ error: error.message }, 500);
+      }).select("*").single();
+      if (error) {
+        if (error.code === "23505") return json({ error: "A campaign with that slug already exists." }, 409);
+        return json({ error: error.message }, 500);
+      }
       return json({ campaign: data });
     }
 

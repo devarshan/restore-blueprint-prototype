@@ -24,29 +24,33 @@ export function AdminLogin() {
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
+    if (!password.trim()) {
+      setError('Enter the password.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
       const result = await adminLogin(password);
       storeAdminSession(result.token, result.expiresIn);
       navigate('/admin', { replace: true });
-    } catch {
-      setError('Password did not match.');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '';
+      if (/too many/i.test(message)) setError('Too many tries. Wait a few minutes, then try once.');
+      else if (/failed to fetch|networkerror|load failed/i.test(message)) {
+        setError('Could not reach the server.');
+      } else setError('Password did not match.');
     } finally {
       setBusy(false);
     }
   }
 
   return (
-    <div className="admin-shell admin-login">
-      <form onSubmit={onSubmit} className="admin-login-card">
-        <RestoreLogo variant="light" className="h-8 max-h-8 w-auto" />
-        <h1 className="mt-8 font-sans text-[1.75rem] font-bold tracking-tight">Restore Survey</h1>
-        <p className="mt-2 font-sans text-sm text-ink/55">Marketing admin</p>
-        <label
-          htmlFor="password"
-          className="mt-8 block font-sans text-[0.68rem] tracking-[0.16em] text-ink/45 uppercase"
-        >
+    <div className="admin-login">
+      <form onSubmit={onSubmit} className="admin-login-panel">
+        <RestoreLogo variant="light" className="admin-login-logo" />
+        <h1 className="admin-login-title">Admin</h1>
+        <label htmlFor="password" className="admin-login-label">
           Password
         </label>
         <input
@@ -54,11 +58,14 @@ export function AdminLogin() {
           type="password"
           autoComplete="current-password"
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          className="admin-field"
+          onChange={(event) => {
+            setPassword(event.target.value);
+            if (error) setError('');
+          }}
+          className="admin-login-field"
         />
-        {error ? <p className="mt-3 font-sans text-sm text-red-800">{error}</p> : null}
-        <button type="submit" disabled={busy || !password} className="admin-cta admin-cta-block mt-6">
+        {error ? <p className="admin-login-error">{error}</p> : null}
+        <button type="submit" disabled={busy} className="admin-login-submit">
           {busy ? 'Signing in' : 'Sign in'}
         </button>
       </form>

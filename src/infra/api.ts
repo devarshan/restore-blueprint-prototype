@@ -1,6 +1,13 @@
 import { env } from './env';
-import { getAdminToken } from './auth';
+import { clearAdminSession, getAdminToken } from './auth';
 import type { ChronotypeResult, SurveyData } from '../domain/chronotype/types';
+
+function bounceExpiredAdminSession(): void {
+  clearAdminSession();
+  if (typeof window === 'undefined') return;
+  if (window.location.pathname.includes('admin-login')) return;
+  window.location.assign('/admin-login');
+}
 
 export interface CampaignRecord {
   id: number;
@@ -54,7 +61,11 @@ async function request<T>(path: string, init: RequestInit = {}, auth = false): P
   headers.set('Authorization', `Bearer ${env.anonKey}`);
   if (auth) {
     const token = getAdminToken();
-    if (token) headers.set('X-Admin-Token', token);
+    if (!token) {
+      bounceExpiredAdminSession();
+      throw new Error('Session expired');
+    }
+    headers.set('X-Admin-Token', token);
   }
 
   const response = await fetch(`${env.serverUrl}${path}`, {
@@ -63,10 +74,19 @@ async function request<T>(path: string, init: RequestInit = {}, auth = false): P
   });
 
   const text = await response.text();
-  const data = text ? (JSON.parse(text) as T & { error?: string }) : ({} as T);
+  let data = {} as T & { error?: string };
+  if (text) {
+    try {
+      data = JSON.parse(text) as T & { error?: string };
+    } catch {
+      if (auth && response.status === 401) bounceExpiredAdminSession();
+      throw new Error(`${response.status} ${response.statusText}`);
+    }
+  }
 
   if (!response.ok) {
-    const message = (data as { error?: string }).error || `${response.status} ${response.statusText}`;
+    if (auth && response.status === 401) bounceExpiredAdminSession();
+    const message = data.error || `${response.status} ${response.statusText}`;
     throw new Error(message);
   }
 
@@ -129,10 +149,17 @@ export async function adminExportCsv(campaign?: string): Promise<string> {
   const headers = new Headers();
   headers.set('Authorization', `Bearer ${env.anonKey}`);
   const token = getAdminToken();
-  if (token) headers.set('X-Admin-Token', token);
+  if (!token) {
+    bounceExpiredAdminSession();
+    throw new Error('Session expired');
+  }
+  headers.set('X-Admin-Token', token);
 
   const response = await fetch(`${env.serverUrl}/admin/leads/export${query}`, { headers });
-  if (!response.ok) throw new Error('Export failed');
+  if (!response.ok) {
+    if (response.status === 401) bounceExpiredAdminSession();
+    throw new Error('Export failed');
+  }
   return response.text();
 }
 

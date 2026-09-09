@@ -54,11 +54,14 @@ export function LineChart({
   }
 
   const ticks = series.filter((_, index) => index === 0 || index === series.length - 1 || index % 3 === 0);
+  const last = series.length - 1;
+  const completedArea = `${d('completed')} L${x(last).toFixed(1)} ${y(0).toFixed(1)} L${x(0).toFixed(1)} ${y(0).toFixed(1)} Z`;
 
   return (
     <div className="admin-chart">
       <svg viewBox={`0 0 ${width} ${height}`} role="img" aria-label={`${aLabel} and ${bLabel} over 14 days`}>
         <line x1={pad.left} y1={y(0)} x2={width - pad.right} y2={y(0)} stroke="rgba(16,37,57,0.12)" />
+        <path d={completedArea} fill="rgba(190,225,227,0.42)" />
         <path d={d('started')} fill="none" stroke="rgba(16,37,57,0.28)" strokeWidth="2" />
         <path d={d('completed')} fill="none" stroke="#102539" strokeWidth="2.4" />
         {ticks.map((point) => (
