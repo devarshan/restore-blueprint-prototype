@@ -1193,8 +1193,9 @@ body {
   isolation: isolate;
   min-height: 100dvh;
   display: flex;
-  align-items: flex-start;
-  justify-content: flex-start;
+  align-items: center;
+  align-items: safe center;
+  justify-content: center;
   overflow-x: hidden;
   overflow-y: auto;
   color: #102539;
@@ -1230,27 +1231,42 @@ body {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-columns: 1fr;
-  grid-template-areas:
-    "form"
-    "mark"
-    "origin";
-  gap: 7px;
+  gap: 12px;
   width: 100%;
   max-width: 23rem;
 }
 
+.admin-login-lift {
+  position: relative;
+  isolation: isolate;
+  display: grid;
+  gap: 8px;
+}
+
+.admin-login-lift::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
+  inset: -14px;
+  border-radius: 22px;
+  background: rgba(244, 246, 247, 0.18);
+  box-shadow: 0 26px 48px -28px rgba(16, 37, 57, 0.42);
+  backdrop-filter: blur(16px) saturate(1.04);
+  -webkit-backdrop-filter: blur(16px) saturate(1.04);
+}
+
 .admin-login-mark {
-  grid-area: mark;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   gap: 18px;
   min-height: 6.75rem;
   padding: 16px 18px 18px;
-  border-radius: 0;
+  border-radius: 16px;
   background: #102539;
   color: #fff;
+  box-shadow: 0 18px 34px -16px rgba(16, 37, 57, 0.48);
 }
 
 .admin-login-mark-title {
@@ -1272,12 +1288,14 @@ body {
 }
 
 .admin-login-panel {
-  grid-area: form;
   width: 100%;
   padding: 22px 20px 20px;
   border: 1px solid rgba(16, 37, 57, 0.14);
-  border-radius: 2px;
+  border-radius: 16px;
   background: #fff;
+  box-shadow:
+    0 14px 32px -16px rgba(16, 37, 57, 0.3),
+    0 2px 8px rgba(16, 37, 57, 0.06);
 }
 
 .admin-login-logo {
@@ -1362,32 +1380,23 @@ body {
   outline-offset: 3px;
 }
 
-.admin-login-origin {
-  grid-area: origin;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  gap: 6px 12px;
-  margin: 0;
-  padding: 12px 14px;
-  border: 1px solid rgba(16, 37, 57, 0.12);
-  border-left: 3px solid #102539;
-  border-radius: 0;
-  background: #fff;
-  color: #102539;
+.admin-login-away {
+  margin: 0 4px;
   font-family: var(--font-sans);
-  font-size: 0.84rem;
-  font-weight: 500;
-  line-height: 1.35;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: rgba(16, 37, 57, 0.58);
+}
+
+.admin-login-away a {
+  color: #102539;
+  text-underline-offset: 3px;
   overflow-wrap: anywhere;
 }
 
-.admin-login-origin span {
-  font-size: 0.62rem;
-  font-weight: 600;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: rgba(16, 37, 57, 0.45);
+.admin-login-away a:focus-visible {
+  outline: 2px solid #102539;
+  outline-offset: 3px;
 }
 
 @media (min-width: 768px) {
@@ -1403,24 +1412,25 @@ body {
       #bee1e3 100%
     );
     padding:
-      max(48px, 9vh, env(safe-area-inset-top, 0px))
-      max(36px, env(safe-area-inset-right, 0px))
-      40px
+      max(40px, env(safe-area-inset-top, 0px))
+      max(32px, env(safe-area-inset-right, 0px))
+      max(40px, env(safe-area-inset-bottom, 0px))
       max(32px, env(safe-area-inset-left, 0px));
   }
 
   .admin-login-bento {
     max-width: 46rem;
+    gap: 14px;
+  }
+
+  .admin-login-lift {
     grid-template-columns: minmax(0, 1fr) 15.25rem;
-    grid-template-rows: minmax(12rem, 1fr) auto;
-    grid-template-areas:
-      "form mark"
-      "form origin";
     align-items: stretch;
     gap: 8px 9px;
   }
 
   .admin-login-mark {
+    min-height: 0;
     padding: 20px 18px 22px;
   }
 
@@ -1437,19 +1447,25 @@ body {
     font-size: 2.05rem;
   }
 
-  .admin-login-origin {
-    padding: 14px 16px;
+  .admin-login-away {
+    margin-top: 4px;
   }
 }
 
 @media (min-width: 1280px) {
   .admin-login {
-    padding-left: max(40px, 4.5vw);
-    padding-top: max(52px, 9vh);
+    padding:
+      max(48px, env(safe-area-inset-top, 0px))
+      max(40px, env(safe-area-inset-right, 0px))
+      max(48px, env(safe-area-inset-bottom, 0px))
+      max(40px, env(safe-area-inset-left, 0px));
   }
 
   .admin-login-bento {
     max-width: 50rem;
+  }
+
+  .admin-login-lift {
     grid-template-columns: minmax(0, 1fr) 16.25rem;
   }
 

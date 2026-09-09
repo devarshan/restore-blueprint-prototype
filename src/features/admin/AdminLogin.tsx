@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { RestoreLogo } from '../../components/RestoreLogo';
 import { adminLogin } from '../../infra/api';
 import { storeAdminSession } from '../../infra/auth';
-import { SITE_ORIGIN } from '../../infra/env';
 
-const liveSite = SITE_ORIGIN.replace(/^https?:\/\//, '');
+const PUBLIC_SURVEY_URL = 'https://conferences.restoreworklife.com';
+const PUBLIC_SURVEY_HOST = 'conferences.restoreworklife.com';
 
 export function AdminLogin() {
   const navigate = useNavigate();
@@ -51,35 +51,37 @@ export function AdminLogin() {
   return (
     <div className="admin-login">
       <div className="admin-login-bento">
-        <form onSubmit={onSubmit} className="admin-login-panel">
-          <RestoreLogo variant="light" className="admin-login-logo" />
-          <h1 className="admin-login-title">Admin</h1>
-          <label htmlFor="password" className="admin-login-label">
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            autoComplete="current-password"
-            value={password}
-            onChange={(event) => {
-              setPassword(event.target.value);
-              if (error) setError('');
-            }}
-            className="admin-login-field"
-          />
-          {error ? <p className="admin-login-error">{error}</p> : null}
-          <button type="submit" disabled={busy} className="admin-login-submit">
-            {busy ? 'Signing in' : 'Sign in'}
-          </button>
-        </form>
-        <div className="admin-login-mark">
-          <p className="admin-login-mark-title">Conference survey</p>
-          <p className="admin-login-mark-note">Attendees open the link on their phones.</p>
+        <div className="admin-login-lift">
+          <form onSubmit={onSubmit} className="admin-login-panel">
+            <RestoreLogo variant="light" className="admin-login-logo" />
+            <h1 className="admin-login-title">Admin</h1>
+            <label htmlFor="password" className="admin-login-label">
+              Password
+            </label>
+            <input
+              id="password"
+              type="password"
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => {
+                setPassword(event.target.value);
+                if (error) setError('');
+              }}
+              className="admin-login-field"
+            />
+            {error ? <p className="admin-login-error">{error}</p> : null}
+            <button type="submit" disabled={busy} className="admin-login-submit">
+              {busy ? 'Signing in' : 'Sign in'}
+            </button>
+          </form>
+          <div className="admin-login-mark">
+            <p className="admin-login-mark-title">Conference survey</p>
+            <p className="admin-login-mark-note">Attendees open the link on their phones.</p>
+          </div>
         </div>
-        <p className="admin-login-origin">
-          <span>Live site</span>
-          {liveSite}
+        <p className="admin-login-away">
+          Not a Restore employee? Go to{' '}
+          <a href={PUBLIC_SURVEY_URL}>{PUBLIC_SURVEY_HOST}</a>
         </p>
       </div>
     </div>
