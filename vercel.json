@@ -44,13 +44,20 @@
       ]
     }
   ],
+  "redirects": [
+    {
+      "source": "/newsletter",
+      "destination": "https://restoreworklife.us17.list-manage.com/subscribe?u=cd448195689125cbea3ed644d&id=b85308afdd",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/widget.js",
       "destination": "/widget.js"
     },
     {
-      "source": "/((?!widget\\.js).*)",
+      "source": "/((?!widget\\.js|newsletter).*)",
       "destination": "/index.html"
     }
   ],

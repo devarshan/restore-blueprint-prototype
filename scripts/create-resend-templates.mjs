@@ -15,8 +15,7 @@ const root = join(dirname(fileURLToPath(import.meta.url)), "..");
 const SITE = "https://conferences.restoreworklife.com";
 const LOGO_SRC = `${SITE}/static/images/restore-wordmark-light.png`;
 const LINKEDIN_URL = "https://www.linkedin.com/company/restore-enterprises-corporation";
-const NEWSLETTER_URL =
-  "https://restoreworklife.us17.list-manage.com/subscribe?u=cd448195689125cbea3ed644d&id=b85308afdd";
+const NEWSLETTER_URL = `${SITE}/newsletter`;
 const CONTACT_EMAIL = "michelle@restoreworklife.com";
 const CONTACT_URL = `mailto:${CONTACT_EMAIL}`;
 const NAVY = "#102539";
@@ -27,6 +26,7 @@ const PRODUCT_LINE =
   "Restore is a workplace solution that brings energy-intelligent scheduling to the workplace. Using calendar and energy insights, we help reduce burnout, protect focus time, and improve sustainable performance.";
 const DEFAULT_INTRO =
   "Thank you for taking the Restore chronotype survey. We hope your results sparked some insights into how <strong>you</strong> naturally work best.";
+const RESULTS_EMAIL_SUBJECT = "Restore: Your workday has a rhythm. Here's yours:";
 
 const COPY = {
   horizon: {
@@ -86,7 +86,7 @@ function templateHtml(type) {
   const peakLine = `${copy.name}: ${firstRange} (${copy.firstLabel}) and ${secondRange} (${copy.secondLabel})`;
   const preheader = `You are ${copy.article} ${copy.name} Chronotype. Peak windows: ${firstRange} and ${secondRange}.`;
   const scheduleAlt = `${copy.name} Schedule: ${firstRange} and ${secondRange}`;
-  const subject = "You Found Us, Now Restore Your Workday";
+  const subject = RESULTS_EMAIL_SUBJECT;
   return `<!DOCTYPE html>
 <html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
@@ -326,7 +326,7 @@ function templatePayload(spec) {
     name: spec.name,
     alias: spec.alias,
     from,
-    subject: "You Found Us, Now Restore Your Workday",
+    subject: RESULTS_EMAIL_SUBJECT,
     html: templateHtml(spec.type),
     variables: [
       { key: "GREETING", type: "string", fallback_value: " " },

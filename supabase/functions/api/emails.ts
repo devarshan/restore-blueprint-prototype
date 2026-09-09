@@ -20,8 +20,7 @@ interface ChronotypeCopy {
 const SITE = "https://conferences.restoreworklife.com";
 const LOGO_SRC = `${SITE}/static/images/restore-wordmark-light.png`;
 const LINKEDIN_URL = "https://www.linkedin.com/company/restore-enterprises-corporation";
-const NEWSLETTER_URL =
-  "https://restoreworklife.us17.list-manage.com/subscribe?u=cd448195689125cbea3ed644d&id=b85308afdd";
+const NEWSLETTER_URL = `${SITE}/newsletter`;
 const CONTACT_EMAIL = "michelle@restoreworklife.com";
 const CONTACT_URL = `mailto:${CONTACT_EMAIL}`;
 export const SCHEDULE_CID = "chronotype-schedule";
@@ -80,6 +79,8 @@ export function resolveChronotype(value: string): ChronotypeName {
 
 export const DEFAULT_INTRO =
   "Thank you for taking the Restore chronotype survey. We hope your results sparked some insights into how <strong>you</strong> naturally work best.";
+
+export const RESULTS_EMAIL_SUBJECT = "Restore: Your workday has a rhythm. Here's yours:";
 
 export const RESEND_TEMPLATE_ALIASES: Record<ChronotypeName, string> = {
   apex: "restore-apex-schedule",
@@ -184,10 +185,7 @@ export function greetingHtml(firstName: string): string {
 export function resultsEmailSubject(campaignName: string, templateKey: string): { subject: string; event: string | null; override: boolean } {
   const event = namedEvent(campaignName) ||
     (templateKey === "future-of-work" ? "Future of Work" : null);
-  if (event) {
-    return { subject: `You Found Us at ${event}, Now Restore Your Workday`, event, override: true };
-  }
-  return { subject: "You Found Us, Now Restore Your Workday", event: null, override: false };
+  return { subject: RESULTS_EMAIL_SUBJECT, event, override: true };
 }
 
 export function buildTemplateSend(vars: EmailVars): {
@@ -417,7 +415,7 @@ export function buildResultsEmail(vars: EmailVars): { subject: string; html: str
 export function buildResendTemplateHtml(type: ChronotypeName): string {
   const layout = chronotypeLayout(type);
   return renderEmailHtml({
-    subject: "You Found Us, Now Restore Your Workday",
+    subject: RESULTS_EMAIL_SUBJECT,
     preheader: layout.preheader,
     greeting: "{{{GREETING}}}",
     intro: "{{{INTRO}}}",
