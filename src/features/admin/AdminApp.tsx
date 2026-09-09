@@ -155,7 +155,8 @@ export function AdminApp() {
   const [error, setError] = useState('');
   const [name, setName] = useState('');
   const [slugInput, setSlugInput] = useState('');
-  const [saving, setSaving] = useState(false);
+  const [savingCreate, setSavingCreate] = useState(false);
+  const [savingEdit, setSavingEdit] = useState(false);
   const [notice, setNotice] = useState('');
   const [mode, setMode] = useState<WidgetMode>('inline');
   const [qr, setQr] = useState('');
@@ -388,7 +389,7 @@ export function AdminApp() {
       setError('A campaign with that slug already exists.');
       return;
     }
-    setSaving(true);
+    setSavingCreate(true);
     setError('');
     setNotice('');
     try {
@@ -403,7 +404,7 @@ export function AdminApp() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save campaign.');
     } finally {
-      setSaving(false);
+      setSavingCreate(false);
     }
   }
 
@@ -414,7 +415,7 @@ export function AdminApp() {
       setError('Enter a campaign name.');
       return;
     }
-    setSaving(true);
+    setSavingEdit(true);
     setError('');
     setEditNotice('');
     try {
@@ -429,7 +430,7 @@ export function AdminApp() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not update campaign.');
     } finally {
-      setSaving(false);
+      setSavingEdit(false);
     }
   }
 
@@ -816,10 +817,10 @@ export function AdminApp() {
                 <button
                   type="button"
                   onClick={() => void createCampaign()}
-                  disabled={saving || !name.trim()}
+                  disabled={savingCreate || !name.trim()}
                   className="admin-cta"
                 >
-                  {saving ? 'Saving' : 'Save campaign'}
+                  {savingCreate ? 'Saving' : 'Save campaign'}
                 </button>
                 {notice ? <p className="admin-notice">{notice}</p> : null}
               </div>
@@ -902,10 +903,10 @@ export function AdminApp() {
                     <button
                       type="button"
                       onClick={() => void updateCampaign()}
-                      disabled={saving || !editName.trim() || !editDirty}
+                      disabled={savingEdit || !editName.trim() || !editDirty}
                       className="admin-cta"
                     >
-                      {saving ? 'Saving' : 'Save changes'}
+                      {savingEdit ? 'Saving' : 'Save changes'}
                     </button>
                     {editNotice ? <p className="admin-notice">{editNotice}</p> : null}
                     <div className="admin-share-link">
