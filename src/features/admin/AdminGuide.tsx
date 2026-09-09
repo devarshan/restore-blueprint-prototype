@@ -235,9 +235,10 @@ export function AdminGuide({
         <ol className="admin-steps">
           <li>
             <div>
-              <p>In Campaigns, set Result email, then Save campaign.</p>
+              <p>In Campaigns, pick the conference, set Result email, then Save changes.</p>
               <p className="admin-guide-note">
-                Next finishes on that campaign use that layout. Past leads keep whatever already went out.
+                Next finishes on that campaign use that layout. Past leads keep whatever already went out. The URL slug
+                does not change.
               </p>
             </div>
           </li>

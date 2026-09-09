@@ -6,6 +6,7 @@ import {
   adminCampaigns,
   adminCreateCampaign,
   adminExportCsv,
+  adminUpdateCampaign,
   adminLead,
   adminLeads,
   adminOverview,
@@ -161,6 +162,9 @@ export function AdminApp() {
   const [copied, setCopied] = useState('');
   const [selectedSlug, setSelectedSlug] = useState(DEFAULT_CAMPAIGN_SLUG);
   const [emailDesign, setEmailDesign] = useState<EmailDesignKey>('default');
+  const [editName, setEditName] = useState('');
+  const [editEmail, setEditEmail] = useState<EmailDesignKey>('default');
+  const [editNotice, setEditNotice] = useState('');
   const [healthOverview, setHealthOverview] = useState<AdminOverview | null>(null);
   const [recordsUp, setRecordsUp] = useState<boolean | null>(null);
   const [checkedAt, setCheckedAt] = useState<Date | null>(null);
@@ -170,6 +174,11 @@ export function AdminApp() {
   const embedUrl = `${SITE_ORIGIN}/embed?campaign=${selectedSlug}`;
   const pendingSlug = slugInput.trim() || slugify(name) || 'pending';
   const selectedCampaign = campaigns.find((item) => item.slug === selectedSlug);
+  const editDirty = Boolean(
+    selectedCampaign &&
+      (editName.trim() !== selectedCampaign.name ||
+        editEmail !== parseEmailDesign(selectedCampaign.email_template_key)),
+  );
 
   const iframeSnippet = `<iframe src="${embedUrl}" title="Restore Survey" style="width:100%;min-height:640px;border:0;"></iframe>`;
   const jsSnippet = `<div id="restore-survey"></div>
@@ -323,6 +332,16 @@ export function AdminApp() {
     };
   }, [tab, campaignUrl, selectedCampaign]);
 
+  useEffect(() => {
+    if (!selectedCampaign) return;
+    setEditName(selectedCampaign.name);
+    setEditEmail(parseEmailDesign(selectedCampaign.email_template_key));
+  }, [selectedCampaign]);
+
+  useEffect(() => {
+    setEditNotice('');
+  }, [selectedSlug]);
+
   function logout() {
     clearAdminSession();
     navigate('/admin-login', { replace: true });
@@ -333,6 +352,14 @@ export function AdminApp() {
     setDetail(null);
     setError('');
     if (next === 'leads') setLeadsLoading(true);
+  }
+
+  function selectSavedCampaign(slug: string) {
+    setSelectedSlug(slug);
+    const found = campaigns.find((item) => item.slug === slug);
+    if (!found) return;
+    setEditName(found.name);
+    setEditEmail(parseEmailDesign(found.email_template_key));
   }
 
   function startNewCampaign() {
@@ -375,6 +402,32 @@ export function AdminApp() {
       setEmailDesign('default');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Could not save campaign.');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function updateCampaign() {
+    if (!selectedCampaign) return;
+    const nextName = editName.trim();
+    if (!nextName) {
+      setError('Enter a campaign name.');
+      return;
+    }
+    setSaving(true);
+    setError('');
+    setEditNotice('');
+    try {
+      const updated = await adminUpdateCampaign(selectedCampaign.slug, {
+        name: nextName,
+        emailTemplateKey: editEmail,
+      });
+      setCampaigns((current) =>
+        current.map((item) => (item.id === updated.campaign.id ? updated.campaign : item)),
+      );
+      setEditNotice(`Updated ${updated.campaign.name}. New finishes use this result email.`);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not update campaign.');
     } finally {
       setSaving(false);
     }
@@ -775,7 +828,9 @@ export function AdminApp() {
                 <h2 className="admin-card-title">
                   {selectedCampaign ? `Share ${selectedCampaign.name}` : 'Share'}
                 </h2>
-                <p className="admin-card-copy">Pick a saved conference, then copy the link, QR, or embed.</p>
+                <p className="admin-card-copy">
+                  Pick a saved conference to change its name or result email, then copy the link, QR, or embed.
+                </p>
                 {campaignsError ? (
                   <p className="admin-empty">{campaignsError}</p>
                 ) : campaigns.length ? (
@@ -784,7 +839,7 @@ export function AdminApp() {
                       <li key={item.id}>
                         <button
                           type="button"
-                          onClick={() => setSelectedSlug(item.slug)}
+                          onClick={() => selectSavedCampaign(item.slug)}
                           className={selectedSlug === item.slug ? 'is-on' : ''}
                         >
                           <span>{item.name}</span>
@@ -798,9 +853,61 @@ export function AdminApp() {
                 )}
                 {selectedCampaign ? (
                   <>
-                    <p className="admin-field-hint">
-                      Result email for this conference: {emailDesignLabel(selectedCampaign.email_template_key)}.
-                    </p>
+                    <div className="admin-form-grid admin-edit-grid">
+                      <div>
+                        <label htmlFor="editCampaignName" className="admin-label">
+                          Campaign name
+                          <AdminHint label="Edit campaign name">
+                            Changes the name in this admin and on the survey. The URL does not change.
+                          </AdminHint>
+                        </label>
+                        <input
+                          id="editCampaignName"
+                          value={editName}
+                          onChange={(event) => setEditName(event.target.value)}
+                          className="admin-field"
+                        />
+                      </div>
+                      <div>
+                        <p className="admin-label">
+                          Slug
+                          <AdminHint label="Locked slug">
+                            The floor link and QR use this slug. It cannot be changed after save.
+                          </AdminHint>
+                        </p>
+                        <p className="admin-field-hint">{`/?campaign=${selectedCampaign.slug}`}</p>
+                      </div>
+                      <div className="admin-form-span">
+                        <label htmlFor="editEmailDesign" className="admin-label">
+                          Result email
+                          <AdminHint label="Edit result email">
+                            Next finishes on this campaign use this layout. Past leads keep whatever already went out.
+                          </AdminHint>
+                        </label>
+                        <select
+                          id="editEmailDesign"
+                          value={editEmail}
+                          onChange={(event) => setEditEmail(parseEmailDesign(event.target.value))}
+                          className="admin-field"
+                        >
+                          {EMAIL_DESIGN_OPTIONS.map((item) => (
+                            <option key={item.key} value={item.key}>
+                              {item.label}
+                            </option>
+                          ))}
+                        </select>
+                        <p className="admin-field-hint">{emailDesignNote(editEmail)}</p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void updateCampaign()}
+                      disabled={saving || !editName.trim() || !editDirty}
+                      className="admin-cta"
+                    >
+                      {saving ? 'Saving' : 'Save changes'}
+                    </button>
+                    {editNotice ? <p className="admin-notice">{editNotice}</p> : null}
                     <div className="admin-share-link">
                   <div>
                     <p className="admin-label">

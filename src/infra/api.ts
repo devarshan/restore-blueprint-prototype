@@ -144,6 +144,16 @@ export function adminCreateCampaign(body: { name: string; slug: string; emailTem
   }, true);
 }
 
+export function adminUpdateCampaign(
+  slug: string,
+  body: { name: string; emailTemplateKey?: string },
+) {
+  return request<{ campaign: CampaignRecord }>(`/admin/campaigns/${encodeURIComponent(slug)}`, {
+    method: 'PATCH',
+    body: JSON.stringify(body),
+  }, true);
+}
+
 export async function adminExportCsv(campaign?: string): Promise<string> {
   const query = campaign ? `?campaign=${encodeURIComponent(campaign)}` : '';
   const headers = new Headers();

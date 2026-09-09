@@ -6,7 +6,7 @@ import { isMissingResendTemplate, sendEmail } from "./resend.ts";
 const cors = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, content-type, x-admin-token",
-  "Access-Control-Allow-Methods": "GET,POST,OPTIONS",
+  "Access-Control-Allow-Methods": "GET,POST,PATCH,OPTIONS",
 };
 
 const MAX_JSON_BYTES = 32 * 1024;
@@ -409,6 +409,24 @@ Deno.serve(async (req) => {
         if (error.code === "23505") return json({ error: "A campaign with that slug already exists." }, 409);
         return json({ error: error.message }, 500);
       }
+      return json({ campaign: data });
+    }
+
+    if (req.method === "PATCH" && path.startsWith("/admin/campaigns/")) {
+      const slug = decodeURIComponent(path.slice("/admin/campaigns/".length)).toLowerCase().slice(0, 80);
+      if (!slug) return json({ error: "Campaign not found." }, 404);
+      const campaign = await getCampaign(client, slug);
+      if (!campaign) return json({ error: "Campaign not found." }, 404);
+      const parsed = await readJson(req);
+      if (parsed instanceof Response) return parsed;
+      const name = clip(parsed.body.name, 120);
+      if (!name) return json({ error: "Enter a campaign name." }, 400);
+      const emailTemplateKey = clip(parsed.body.emailTemplateKey || campaign.email_template_key, 80);
+      const { data, error } = await client.from("campaigns").update({
+        name,
+        email_template_key: emailTemplateKey,
+      }).eq("id", campaign.id).select("*").single();
+      if (error) return json({ error: error.message }, 500);
       return json({ campaign: data });
     }
 
