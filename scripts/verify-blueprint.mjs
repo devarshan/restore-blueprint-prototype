@@ -27,15 +27,18 @@ assert(aurora.dayStart === 8 * 60, `aurora day start ${aurora.dayStart}`);
 assert(horizon.duration === 16 * 60, `horizon duration ${horizon.duration}`);
 
 assert(
-  horizon.sentence === "Your energy peaks today are 7:30 AM to 10:00 AM and 2:00 PM to 4:00 PM.",
+  horizon.sentence ===
+    "Your energy peaks today are 7:30 AM to 10:00 AM (main peak) and 2:00 PM to 4:00 PM (secondary peak).",
   horizon.sentence,
 );
 assert(
-  apex.sentence === "Your energy peaks today are 9:00 AM to 11:30 AM and 3:30 PM to 5:30 PM.",
+  apex.sentence ===
+    "Your energy peaks today are 9:00 AM to 11:30 AM (main peak) and 3:30 PM to 5:30 PM (secondary peak).",
   apex.sentence,
 );
 assert(
-  aurora.sentence === "Your energy peaks today are 10:30 AM to 1:00 PM and 6:00 PM to 8:00 PM.",
+  aurora.sentence ===
+    "Your energy peaks today are 10:30 AM to 1:00 PM (secondary peak) and 6:00 PM to 8:00 PM (main peak).",
   aurora.sentence,
 );
 
@@ -94,7 +97,7 @@ assert(clipped.ticks.includes(120), `clipped ticks should keep 10:00 ${clipped.t
 
 const hidden = mod.resolveEnergyBlueprint({ chronotype: "horizon", dayStart: "11:00" });
 assert(
-  hidden.sentence === "Your energy peak today is 2:00 PM to 4:00 PM.",
+  hidden.sentence === "Your energy peak today is 2:00 PM to 4:00 PM (secondary peak).",
   hidden.sentence,
 );
 

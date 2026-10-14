@@ -1,14 +1,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { CHRONOTYPE_INFO } from "../../domain/chronotype/constants";
 import {
+  DAY_MINUTES,
+  formatClockTime,
   nextMinuteDelay,
   nowMarkerOffset,
   parseBlueprintTime,
   resolveEnergyBlueprint,
   type EnergyBlueprintInput,
-  type EnergyBlueprintModel,
   type EnergyPeakKind,
-  type ResolvedPeak,
 } from "../../domain/chronotype/blueprint";
 import { EnergyPeakSentence } from "./EnergyPeakSentence";
 import "./energy-blueprint.css";
@@ -37,6 +37,19 @@ export function EnergyBlueprintVertical({
     nowMinutes === null ? null : nowMarkerOffset(nowMinutes, model.dayStart, model.duration);
   const name = CHRONOTYPE_INFO[chronotype].name;
   const classNames = className ? `ebv ${className}` : "ebv";
+  const hasVisiblePeaks = model.peaks.some((peak) => peak.slices.length > 0);
+  const dayText =
+    model.duration >= DAY_MINUTES
+      ? "Shows the full 24 hours."
+      : `Day runs ${formatClockTime(model.dayStart)} to ${formatClockTime(
+          (model.dayStart + model.duration) % DAY_MINUTES,
+        )}.`;
+  const nowText =
+    nowMinutes === null
+      ? null
+      : nowOffset === null
+        ? `${formatClockTime(nowMinutes)} is outside this day.`
+        : `Current time ${formatClockTime(nowMinutes)}.`;
 
   return (
     <section
@@ -117,23 +130,13 @@ export function EnergyBlueprintVertical({
           ) : null}
         </div>
       </div>
-      <ul className="sr-only">
-        {audiblePeaks(model).length === 0 ? <li>No energy peaks fall in this day.</li> : null}
-        {audiblePeaks(model).map((peak) => (
-          <li key={`${peak.kind}-${peak.start}`}>
-            {peakKindLabel(peak.kind)} peak, {peak.startLabel} to {peak.endLabel}
-          </li>
-        ))}
-      </ul>
+      {!hasVisiblePeaks ? <p className="sr-only">No energy peaks fall in this day.</p> : null}
+      <p className="sr-only">
+        {dayText}
+        {nowText ? ` ${nowText}` : null}
+      </p>
     </section>
   );
-}
-
-function audiblePeaks(model: EnergyBlueprintModel): ResolvedPeak[] {
-  const visible = model.peaks
-    .filter((peak) => peak.slices.length > 0)
-    .sort((left, right) => left.slices[0].offset - right.slices[0].offset);
-  return visible;
 }
 
 function peakClass(kind: EnergyPeakKind): string {
@@ -142,19 +145,6 @@ function peakClass(kind: EnergyPeakKind): string {
       return "ebv-peak is-main";
     case "secondary":
       return "ebv-peak is-secondary";
-    default: {
-      const neverKind: never = kind;
-      return neverKind;
-    }
-  }
-}
-
-function peakKindLabel(kind: EnergyPeakKind): string {
-  switch (kind) {
-    case "main":
-      return "Main";
-    case "secondary":
-      return "Secondary";
     default: {
       const neverKind: never = kind;
       return neverKind;

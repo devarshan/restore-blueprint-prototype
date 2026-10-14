@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 import { formatClockTime } from "../../domain/chronotype/blueprint";
 import { CHRONOTYPE_INFO } from "../../domain/chronotype/constants";
-import type { ChronotypeResult } from "../../domain/chronotype/types";
+import type { Chronotype, ChronotypeResult } from "../../domain/chronotype/types";
 import { ScheduleClock } from "../survey/ScheduleClock";
 import { EnergyBlueprintVertical } from "./EnergyBlueprintVertical";
 import { EnergyPeakSentence } from "./EnergyPeakSentence";
 import "./energy-blueprint.css";
+
+const CHRONOTYPES: Chronotype[] = ["horizon", "apex", "aurora"];
 
 const HORIZON_CLOCK: ChronotypeResult = {
   chronotype: "horizon",
@@ -33,11 +35,13 @@ export function EnergyBlueprintDemo() {
   return (
     <main className="ebv-bench">
       <div className="ebv-bench-inner">
-        <p className="ebv-bench-kicker">Development only</p>
+        <p className="ebv-bench-kicker">Restore Energy Blueprint, prototype</p>
         <h1>Energy blueprint</h1>
         <p className="ebv-bench-lead">
           One day, top to bottom, from the Web Summit peak windows. Horizon starts at 6 am, Apex at 7 am, Aurora at 8 am.
         </p>
+
+        <PrototypeStage />
 
         <div className="ebv-bench-grid">
           <figure className="ebv-bench-item" id="horizon">
@@ -89,6 +93,47 @@ export function EnergyBlueprintDemo() {
         </section>
       </div>
     </main>
+  );
+}
+
+function PrototypeStage() {
+  const [chronotype, setChronotype] = useState<Chronotype>("horizon");
+  const [minutes, setMinutes] = useState(9 * 60 + 12);
+  const label = formatClockTime(minutes);
+
+  return (
+    <section className="ebv-bench-block ebv-proto" id="prototype" aria-label="Prototype controls">
+      <h2>Try it</h2>
+      <div className="ebv-proto-controls">
+        <div className="ebv-proto-toggles" role="group" aria-label="Chronotype">
+          {CHRONOTYPES.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={option === chronotype}
+              className={option === chronotype ? "ebv-proto-toggle is-active" : "ebv-proto-toggle"}
+              onClick={() => setChronotype(option)}
+            >
+              {CHRONOTYPE_INFO[option].name}
+            </button>
+          ))}
+        </div>
+        <label className="ebv-proto-now" htmlFor="ebv-proto-slider">
+          Now
+          <input
+            id="ebv-proto-slider"
+            type="range"
+            min={0}
+            max={24 * 60 - 1}
+            step={1}
+            value={minutes}
+            onChange={(event) => setMinutes(Number(event.target.value))}
+          />
+          <output htmlFor="ebv-proto-slider">{label}</output>
+        </label>
+      </div>
+      <EnergyBlueprintVertical chronotype={chronotype} now={label} />
+    </section>
   );
 }
 

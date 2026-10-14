@@ -7,7 +7,7 @@
 */
 
 .ebv {
-  --eb-heat-0: #7aadae;
+  --eb-heat-0: #5f9496;
   --eb-heat-1: #4d858c;
   --eb-heat-2: #2f6570;
   --eb-heat-3: #1a4552;
@@ -201,6 +201,54 @@
 
 .ebv-bench-block {
   margin-top: 28px;
+}
+
+.ebv-proto-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-bottom: 12px;
+}
+
+.ebv-proto-toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.ebv-proto-toggle {
+  padding: 8px 14px;
+  border: 1px solid #102539;
+  border-radius: 999px;
+  background: transparent;
+  color: #102539;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ebv-proto-toggle.is-active {
+  background: #102539;
+  color: #ffffff;
+}
+
+.ebv-proto-now {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ebv-proto-now input[type="range"] {
+  width: min(220px, 40vw);
+  accent-color: #102539;
+}
+
+.ebv-proto-now output {
+  min-width: 7ch;
+  font-variant-numeric: tabular-nums;
 }
 
 .ebv-bench-note {

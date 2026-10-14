@@ -113,12 +113,27 @@ export function formatEnergyPeakSentence(peaks: ResolvedPeak[]): string {
   const visible = peaks
     .filter((peak) => peak.slices.length > 0)
     .sort((a, b) => a.slices[0].offset - b.slices[0].offset);
-  const ranges = visible.map((peak) => `${peak.startLabel} to ${peak.endLabel}`);
+  const ranges = visible.map(
+    (peak) => `${peak.startLabel} to ${peak.endLabel} (${peakKindPhrase(peak.kind)})`,
+  );
   if (ranges.length === 0) return "No energy peaks fall in this day.";
   if (ranges.length === 1) return `Your energy peak today is ${ranges[0]}.`;
   if (ranges.length === 2) return `Your energy peaks today are ${ranges[0]} and ${ranges[1]}.`;
   const head = ranges.slice(0, -1).join(", ");
   return `Your energy peaks today are ${head}, and ${ranges[ranges.length - 1]}.`;
+}
+
+function peakKindPhrase(kind: EnergyPeakKind): string {
+  switch (kind) {
+    case "main":
+      return "main peak";
+    case "secondary":
+      return "secondary peak";
+    default: {
+      const neverKind: never = kind;
+      return neverKind;
+    }
+  }
 }
 
 /**
