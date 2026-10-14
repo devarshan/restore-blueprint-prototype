@@ -1,11 +1,19 @@
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/react';
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { AdminApp } from '../features/admin/AdminApp';
 import { AdminLogin } from '../features/admin/AdminLogin';
 import { SurveyFlow } from '../features/survey/SurveyFlow';
 import { isAdminAuthenticated } from '../infra/auth';
+
+const EnergyBlueprintDemo = import.meta.env.DEV
+  ? lazy(() =>
+      import('../features/blueprint/EnergyBlueprintDemo').then((module) => ({
+        default: module.EnergyBlueprintDemo,
+      })),
+    )
+  : null;
 
 function KeyboardInset() {
   useEffect(() => {
@@ -56,6 +64,16 @@ export default function App() {
         <Route path="/embed" element={<SurveyFlow embed />} />
         <Route path="/admin-login" element={<AdminLogin />} />
         <Route path="/admin" element={<ProtectedAdmin />} />
+        {EnergyBlueprintDemo ? (
+          <Route
+            path="/dev/energy-blueprint"
+            element={
+              <Suspense fallback={null}>
+                <EnergyBlueprintDemo />
+              </Suspense>
+            }
+          />
+        ) : null}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
