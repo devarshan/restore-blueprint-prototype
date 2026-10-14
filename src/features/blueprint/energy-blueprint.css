@@ -1,0 +1,326 @@
+/*
+  Vertical energy blueprint.
+  Palette from the Web Summit clock (src/domain/chronotype/clock.ts):
+  navy #102539, mist #bee1e3, peak bright #ecf8f7, peak deep #9ec9c8, label white.
+  Hour washes use --eb-heat-0 (quiet, lightest) through --eb-heat-4 (peak hour, darkest).
+  Override those custom properties to add heatmap colors.
+*/
+
+.ebv {
+  --eb-heat-0: #5f9496;
+  --eb-heat-1: #4d858c;
+  --eb-heat-2: #2f6570;
+  --eb-heat-3: #1a4552;
+  --eb-heat-4: #12303a;
+  --eb-navy: #102539;
+  --eb-navy-deep: #0c1c28;
+  --eb-mist: #bee1e3;
+  --eb-peak-bright: #ecf8f7;
+  --eb-peak-deep: #9ec9c8;
+  --eb-label-size: 3.5rem;
+  --eb-minute: 0.46px;
+  --eb-ink: #ffffff;
+  box-sizing: border-box;
+  max-width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 16px 14px 12px;
+  color: var(--eb-ink);
+  background:
+    radial-gradient(90% 42% at 78% 0%, rgba(183, 208, 220, 0.2), transparent 58%),
+    linear-gradient(180deg, #163044 0%, var(--eb-navy) 46%, var(--eb-navy-deep) 100%);
+  font-family: var(--font-sans);
+}
+
+.ebv-sentence {
+  margin: 0;
+  color: var(--eb-navy);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.45;
+}
+
+.ebv .ebv-sentence {
+  margin-bottom: 14px;
+  color: var(--eb-ink);
+}
+
+.ebv-chart {
+  display: grid;
+  grid-template-columns: var(--eb-label-size) minmax(0, 1fr);
+  column-gap: 8px;
+  height: calc(var(--eb-minutes) * var(--eb-minute));
+  min-width: 0;
+}
+
+.ebv-label {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 0;
+  color: var(--eb-ink);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.ebv-cell {
+  min-width: 0;
+  box-shadow: inset 0 -1px rgba(16, 37, 57, 0.28);
+}
+
+.ebv-overlay {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  pointer-events: none;
+}
+
+.ebv-peak {
+  z-index: 1;
+  justify-self: center;
+  min-height: 0;
+}
+
+.ebv-peak.is-main {
+  width: 84%;
+  background: linear-gradient(
+    90deg,
+    rgba(158, 201, 200, 0.42) 0%,
+    rgba(190, 225, 227, 0.88) 58%,
+    var(--eb-peak-bright) 100%
+  );
+  box-shadow:
+    inset -2px 0 0 rgba(245, 252, 252, 0.88),
+    0 0 14px rgba(190, 225, 227, 0.28);
+}
+
+.ebv-peak.is-secondary {
+  width: 54%;
+  background: linear-gradient(90deg, rgba(158, 201, 200, 0.34) 0%, rgba(190, 225, 227, 0.7) 100%);
+  box-shadow: inset -1.5px 0 0 rgba(245, 252, 252, 0.72);
+}
+
+.ebv-tick {
+  z-index: 2;
+  align-self: start;
+  height: 1.5px;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 0.5px rgba(8, 22, 34, 0.55);
+}
+
+.ebv-tick.is-end {
+  align-self: end;
+}
+
+.ebv-now {
+  position: relative;
+  z-index: 3;
+  align-self: start;
+  height: 2px;
+  margin-top: -1px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(8, 22, 34, 0.82);
+}
+
+.ebv-now::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 7px;
+  height: 7px;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(8, 22, 34, 0.82);
+  transform: translate(-35%, -50%);
+}
+
+.ebv-bench {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  padding: 28px 20px 56px;
+  background: #d7cfc2;
+  color: #102539;
+  font-family: var(--font-sans);
+}
+
+.ebv-bench-inner {
+  width: min(100%, 1120px);
+  margin: 0 auto;
+}
+
+.ebv-bench-kicker {
+  margin: 0 0 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.ebv-bench h1 {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.ebv-bench-lead {
+  max-width: 38em;
+  margin: 8px 0 0;
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+.ebv-bench-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.ebv-bench-item {
+  min-width: 0;
+  margin: 0;
+}
+
+.ebv-bench-item figcaption,
+.ebv-bench-block h2 {
+  margin: 0 0 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ebv-bench-block {
+  margin-top: 28px;
+}
+
+.ebv-proto-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 20px;
+  margin-bottom: 12px;
+}
+
+.ebv-proto-toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.ebv-proto-toggle {
+  padding: 8px 14px;
+  border: 1px solid #102539;
+  border-radius: 999px;
+  background: transparent;
+  color: #102539;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ebv-proto-toggle.is-active {
+  background: #102539;
+  color: #ffffff;
+}
+
+.ebv-proto-now {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ebv-proto-now input[type="range"] {
+  width: min(220px, 40vw);
+  accent-color: #102539;
+}
+
+.ebv-proto-now output {
+  min-width: 7ch;
+  font-variant-numeric: tabular-nums;
+}
+
+.ebv-bench-note {
+  margin: 0 0 10px;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.ebv-bench-step {
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border: 1px solid #102539;
+  background: transparent;
+  color: #102539;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.ebv-bench-compare {
+  display: grid;
+  grid-template-columns: minmax(0, 280px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.ebv-bench-plate {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.ebv-bench-clock {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: min(100%, 320px);
+  aspect-ratio: 1;
+  margin-top: 12px;
+  background: #102539;
+  container-type: size;
+}
+
+@media (max-width: 800px) {
+  .ebv-bench-grid,
+  .ebv-bench-compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 420px) {
+  .ebv {
+    --eb-label-size: 2.85rem;
+    --eb-minute: 0.4px;
+    padding: 14px 10px 10px;
+  }
+
+  .ebv-label {
+    font-size: 12px;
+  }
+
+  .ebv .ebv-sentence,
+  .ebv-sentence {
+    font-size: 13px;
+  }
+
+  .ebv-bench {
+    padding: 20px 12px 40px;
+  }
+
+  .ebv-bench h1 {
+    font-size: 22px;
+  }
+}
